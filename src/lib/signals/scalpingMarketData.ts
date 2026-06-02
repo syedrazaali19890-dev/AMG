@@ -44,7 +44,7 @@ export class ScalpingMarketData {
             try {
                 // Get 5-minute candles from Exness API
                 const candles = await ExnessAPI.getForexKlines(pair, '5m', candleCount);
-                
+
                 if (candles.length > 0) {
                     return {
                         pair,

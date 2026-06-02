@@ -10,6 +10,7 @@ import { TrendingUp, Trophy, Target, Zap } from 'lucide-react';
 export default function ScalpingCompletedPage() {
     const [completedSignals, setCompletedSignals] = useState<(Signal & { completedAt: string; uniqueKey?: string })[]>([]);
     const [mounted, setMounted] = useState(false);
+    const [activeTab, setActiveTab] = useState<'CRYPTO' | 'FOREX'>('CRYPTO');
 
     useEffect(() => {
         setMounted(true);
@@ -57,6 +58,17 @@ export default function ScalpingCompletedPage() {
 
                     const timestamp = signal.completedAt || new Date().toISOString();
                     signal.uniqueKey = `scalping-${signal.id}-${index}-${timestamp.replace(/[:.]/g, '')}`;
+
+                    // VALIDATE MARKET TYPE
+                    if (!signal.marketType) {
+                        // Infer from pair format if missing
+                        if (signal.pair.includes('/') && !signal.pair.endsWith('USDT')) {
+                            signal.marketType = 'FOREX';
+                        } else {
+                            signal.marketType = 'CRYPTO';
+                        }
+                    }
+
                     return signal;
                 });
 
@@ -75,17 +87,20 @@ export default function ScalpingCompletedPage() {
         }
     }, [mounted]);
 
-    // Calculate statistics
-    const profitableSignals = completedSignals.filter(s => (s.profitLossPercentage || 0) > 0);
-    const lossSignals = completedSignals.filter(s => (s.profitLossPercentage || 0) < 0);
-    const totalProfit = completedSignals.reduce((sum, s) => sum + (s.profitLossPercentage || 0), 0);
-    const avgProfit = completedSignals.length > 0 ? totalProfit / completedSignals.length : 0;
-    const winRate = completedSignals.length > 0 ? (profitableSignals.length / completedSignals.length) * 100 : 0;
-    const bestTrade = Math.max(...completedSignals.map(s => s.profitLossPercentage || 0), 0);
-    const worstTrade = Math.min(...completedSignals.map(s => s.profitLossPercentage || 0), 0);
+    // FILTER SIGNALS BY TAB
+    const filteredSignals = completedSignals.filter(s => s.marketType === activeTab);
+
+    // Calculate statistics based on FILTERED signals
+    const profitableSignals = filteredSignals.filter(s => (s.profitLossPercentage || 0) > 0);
+    const lossSignals = filteredSignals.filter(s => (s.profitLossPercentage || 0) < 0);
+    const totalProfit = filteredSignals.reduce((sum, s) => sum + (s.profitLossPercentage || 0), 0);
+    const avgProfit = filteredSignals.length > 0 ? totalProfit / filteredSignals.length : 0;
+    const winRate = filteredSignals.length > 0 ? (profitableSignals.length / filteredSignals.length) * 100 : 0;
+    const bestTrade = Math.max(...filteredSignals.map(s => s.profitLossPercentage || 0), 0);
+    const worstTrade = Math.min(...filteredSignals.map(s => s.profitLossPercentage || 0), 0);
 
     // Group by date
-    const groupedByDate = completedSignals.reduce((groups: any, signal) => {
+    const groupedByDate = filteredSignals.reduce((groups: any, signal) => {
         const date = new Date(signal.completedAt).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
@@ -111,19 +126,43 @@ export default function ScalpingCompletedPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="mb-8"
                 >
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-                            <Zap className="w-8 h-8 text-green-500" />
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                                <Zap className="w-8 h-8 text-green-500" />
+                            </div>
+                            <div>
+                                <h1 className="text-4xl font-bold text-gradient">Scalping Completed</h1>
+                                <p className="text-muted-foreground">History of completed trades</p>
+                            </div>
                         </div>
-                        <div>
-                            <h1 className="text-4xl font-bold text-gradient">Scalping Completed Signals</h1>
-                            <p className="text-muted-foreground">Quick profit targets achieved</p>
+
+                        {/* TAB FILTER */}
+                        <div className="flex bg-muted/20 p-1 rounded-lg border border-border/50">
+                            <button
+                                onClick={() => setActiveTab('CRYPTO')}
+                                className={`px-6 py-2 rounded-md font-semibold transition-all ${activeTab === 'CRYPTO'
+                                    ? 'bg-background shadow-sm text-blue-500'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                            >
+                                Crypto
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('FOREX')}
+                                className={`px-6 py-2 rounded-md font-semibold transition-all ${activeTab === 'FOREX'
+                                    ? 'bg-background shadow-sm text-green-500'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                            >
+                                Forex
+                            </button>
                         </div>
                     </div>
                 </motion.div>
 
                 {/* Statistics */}
-                {completedSignals.length > 0 && (
+                {filteredSignals.length > 0 ? (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -132,7 +171,7 @@ export default function ScalpingCompletedPage() {
                         <div className="glass-card p-4 rounded-xl">
                             <Trophy className="w-6 h-6 text-yellow-500 mb-2" />
                             <p className="text-sm text-muted-foreground">Total Signals</p>
-                            <p className="text-2xl font-bold">{completedSignals.length}</p>
+                            <p className="text-2xl font-bold">{filteredSignals.length}</p>
                         </div>
 
                         <div className="glass-card p-4 rounded-xl">
@@ -157,6 +196,10 @@ export default function ScalpingCompletedPage() {
                             <p className="text-2xl font-bold text-green-500">+{bestTrade.toFixed(2)}%</p>
                         </div>
                     </motion.div>
+                ) : (
+                    <div className="text-center py-8 mb-8 bg-muted/10 rounded-xl border border-dashed border-border">
+                        <p className="text-muted-foreground">No completed {activeTab} signals yet</p>
+                    </div>
                 )}
 
                 {/* Signals Display */}

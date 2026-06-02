@@ -232,8 +232,8 @@ export default function ScalpingPage() {
                     </motion.div>
                 )}
 
-                {/* Type Selection */}
-                {selectedMarket && !selectedType && (
+                {/* Type Selection - ONLY FOR CRYPTO */}
+                {selectedMarket === 'CRYPTO' && !selectedType && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}

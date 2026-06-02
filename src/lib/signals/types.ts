@@ -276,6 +276,9 @@ export interface Signal {
 
   // Overall prediction consensus
   predictionConsensus?: PredictionConsensus;
+
+  // Macro-economic data bias (Fed rates, CPI, NFP, FOMC)
+  macroDataBias?: MacroSignalBias;
 }
 
 export interface TechnicalIndicators {
@@ -311,6 +314,43 @@ export interface MarketData {
   volumes: number[];
   timestamps: Date[];
   currentPrice: number;
+}
+
+// ============================================
+// MACRO ECONOMIC DATA TYPES
+// ============================================
+
+export enum MacroEventType {
+  FED_RATE_HIKE = 'FED_RATE_HIKE',
+  FED_RATE_CUT = 'FED_RATE_CUT',
+  FED_RATE_HOLD = 'FED_RATE_HOLD',
+  FOMC_MEETING = 'FOMC_MEETING',
+  CPI_RELEASE = 'CPI_RELEASE',
+  NFP_RELEASE = 'NFP_RELEASE',
+}
+
+export interface MacroEvent {
+  type: MacroEventType;
+  name: string;
+  date: Date;
+  actualValue?: number;
+  expectedValue?: number;
+  previousValue?: number;
+  surprise: 'ABOVE' | 'BELOW' | 'INLINE' | 'UNKNOWN';
+  impact: 'HAWKISH' | 'DOVISH' | 'NEUTRAL';
+  description: string;
+}
+
+export interface MacroSignalBias {
+  overallBias: 'STRONG_BULLISH' | 'BULLISH' | 'NEUTRAL' | 'BEARISH' | 'STRONG_BEARISH';
+  confidenceModifier: number;      // -20 to +20
+  volatilityExpected: 'LOW' | 'MODERATE' | 'HIGH' | 'EXTREME';
+  shouldGenerateSignals: boolean;   // false during extreme events
+  rationale: string[];              // Explanation bullets
+  events: MacroEvent[];             // Individual event analyses
+  cryptoBias: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  forexUsdBias: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  lastUpdated: Date;
 }
 
 export interface SignalAccuracy {

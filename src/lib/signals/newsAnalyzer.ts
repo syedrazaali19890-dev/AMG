@@ -1,5 +1,6 @@
 // News and Sentiment Analysis Engine
 // Enhanced with Google News API integration and advanced sentiment scoring
+// Now integrated with real Macro Economic Data (Fed Rate, CPI, NFP, FOMC)
 
 import {
     NewsEvent,
@@ -10,6 +11,7 @@ import {
     SentimentScore
 } from './newsTypes';
 import { GoogleNewsAPI, NewsArticle } from './googleNewsAPI';
+import { MacroEconomicAPI } from './macroEconomicAPI';
 
 export class NewsAnalyzer {
     // Cache for fetched news articles
@@ -164,36 +166,123 @@ export class NewsAnalyzer {
     }
 
     /**
-     * Get economic events (Simulated dynamic)
+     * Get economic events from REAL macro data (Fed Rate, CPI, NFP)
+     * Replaces the old simulated/hardcoded data with MacroEconomicAPI
+     */
+    static async getEconomicEventsAsync(): Promise<EconomicEvent[]> {
+        try {
+            const [fedRate, cpi, nfp] = await Promise.all([
+                MacroEconomicAPI.getFedFundsRate(),
+                MacroEconomicAPI.getCPIData(),
+                MacroEconomicAPI.getNFPData()
+            ]);
+
+            const events: EconomicEvent[] = [];
+
+            // 1. Fed Funds Rate
+            events.push({
+                id: 'macro-fed-rate',
+                name: `US Federal Funds Rate: ${fedRate.currentRate.toFixed(2)}%`,
+                country: 'US',
+                expectedValue: fedRate.previousRate,
+                actualValue: fedRate.currentRate,
+                previousValue: fedRate.previousRate,
+                impact: fedRate.lastAction !== 'HOLD' ? NewsImpact.CRITICAL : NewsImpact.HIGH,
+                sentiment: fedRate.lastAction === 'CUT' ? NewsSentiment.BULLISH
+                    : fedRate.lastAction === 'HIKE' ? NewsSentiment.BEARISH
+                    : NewsSentiment.NEUTRAL,
+                affectedPairs: ['ALL_FOREX', 'ALL_CRYPTO', 'EUR/USD', 'GBP/USD', 'BTC/USDT', 'ETH/USDT'],
+                timestamp: fedRate.lastChangeDate
+            });
+
+            // 2. CPI / Inflation
+            events.push({
+                id: 'macro-cpi',
+                name: `US CPI Inflation: ${cpi.latestCPI}% YoY`,
+                country: 'US',
+                expectedValue: cpi.expectedCPI,
+                actualValue: cpi.latestCPI,
+                previousValue: cpi.previousCPI,
+                impact: NewsImpact.CRITICAL,
+                sentiment: cpi.surprise === 'BELOW' ? NewsSentiment.VERY_BULLISH
+                    : cpi.surprise === 'ABOVE' ? NewsSentiment.BEARISH
+                    : NewsSentiment.NEUTRAL,
+                affectedPairs: ['ALL_FOREX', 'ALL_CRYPTO'],
+                timestamp: cpi.releaseDate
+            });
+
+            // 3. Non-Farm Payrolls
+            events.push({
+                id: 'macro-nfp',
+                name: `US Non-Farm Payrolls: ${nfp.actualJobs}K`,
+                country: 'US',
+                expectedValue: nfp.expectedJobs * 1000,
+                actualValue: nfp.actualJobs * 1000,
+                previousValue: nfp.previousJobs * 1000,
+                impact: NewsImpact.CRITICAL,
+                sentiment: nfp.surprise === 'BELOW' ? NewsSentiment.BULLISH  // Weak jobs = dovish = bullish risk
+                    : nfp.surprise === 'ABOVE' ? NewsSentiment.BEARISH      // Strong jobs = hawkish risk
+                    : NewsSentiment.NEUTRAL,
+                affectedPairs: ['EUR/USD', 'GBP/USD', 'USD/JPY', 'BTC/USDT', 'ETH/USDT', 'ALL_FOREX'],
+                timestamp: nfp.releaseDate
+            });
+
+            // 4. FOMC Meeting (if upcoming)
+            const nextFOMC = MacroEconomicAPI.getNextFOMCMeeting();
+            if (nextFOMC && nextFOMC.daysUntil <= 7) {
+                events.push({
+                    id: 'macro-fomc',
+                    name: `FOMC Meeting ${nextFOMC.daysUntil === 0 ? 'TODAY' : `in ${nextFOMC.daysUntil} days`}`,
+                    country: 'US',
+                    impact: nextFOMC.daysUntil <= 1 ? NewsImpact.CRITICAL : NewsImpact.HIGH,
+                    sentiment: NewsSentiment.NEUTRAL,
+                    affectedPairs: ['ALL_FOREX', 'ALL_CRYPTO'],
+                    timestamp: nextFOMC.date
+                });
+            }
+
+            return events;
+        } catch (error) {
+            console.error('Failed to fetch macro economic events:', error);
+            return this.getEconomicEventsFallback();
+        }
+    }
+
+    /**
+     * Synchronous fallback for backward compatibility
+     * Used by places that can't await (will be migrated over time)
      */
     static getEconomicEvents(): EconomicEvent[] {
-        const now = new Date();
-        // Randomize actual values slightly to create variety
-        const cpiActual = 3.0 + (Math.random() - 0.5) * 0.2;
-        const nfpActual = 250000 + (Math.random() - 0.5) * 50000;
+        return this.getEconomicEventsFallback();
+    }
 
+    /**
+     * Fallback economic events when API is unavailable
+     */
+    private static getEconomicEventsFallback(): EconomicEvent[] {
+        const now = new Date();
         return [
             {
-                id: 'econ-1',
+                id: 'econ-fallback-nfp',
                 name: 'US Non-Farm Payrolls',
                 country: 'US',
                 expectedValue: 200000,
-                actualValue: Math.round(nfpActual),
-                previousValue: 220000,
+                actualValue: 195000,
+                previousValue: 210000,
                 impact: NewsImpact.CRITICAL,
-                sentiment: nfpActual > 220000 ? NewsSentiment.BULLISH : NewsSentiment.BEARISH,
+                sentiment: NewsSentiment.NEUTRAL,
                 affectedPairs: ['EUR/USD', 'GBP/USD', 'USD/JPY', 'BTC/USDT'],
                 timestamp: new Date(now.getTime() - 8 * 60 * 60 * 1000)
             },
             {
-                id: 'econ-3',
+                id: 'econ-fallback-cpi',
                 name: 'US Inflation Rate (CPI)',
                 country: 'US',
-                expectedValue: 3.2,
-                actualValue: parseFloat(cpiActual.toFixed(1)),
-                previousValue: 3.4,
+                expectedValue: 2.8,
+                actualValue: 2.8,
+                previousValue: 2.9,
                 impact: NewsImpact.CRITICAL,
-                sentiment: cpiActual < 3.2 ? NewsSentiment.VERY_BULLISH : NewsSentiment.BEARISH,
+                sentiment: NewsSentiment.NEUTRAL,
                 affectedPairs: ['ALL_FOREX', 'ALL_CRYPTO'],
                 timestamp: new Date(now.getTime() - 48 * 60 * 60 * 1000)
             }
@@ -206,7 +295,7 @@ export class NewsAnalyzer {
      */
     static async calculateSentimentScore(pair: string, technicalScore: number): Promise<SentimentScore> {
         const news = await this.getCurrentNews(pair);
-        const economicEvents = this.getEconomicEvents();
+        const economicEvents = await this.getEconomicEventsAsync();
 
         let newsScore = 0;
         let economicScore = 0;

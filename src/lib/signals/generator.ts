@@ -1,4 +1,5 @@
 // Signal Generator - Advanced Trading Signal Generation
+// Enhanced with Macro Economic Data Integration (Fed Rate, CPI, NFP, FOMC)
 
 import {
     Signal,
@@ -9,7 +10,8 @@ import {
     MarketData,
     Timeframe,
     MarketCondition,
-    TechnicalAlignment
+    TechnicalAlignment,
+    MacroSignalBias
 } from './types';
 import { TechnicalIndicators } from './indicators';
 import { NewsAnalyzer } from './newsAnalyzer';
@@ -18,6 +20,7 @@ import { SignalHelpers } from './signalHelpers';
 import { PredictionEngine } from '../ml/predictionEngine';
 import { MultiTimeframeAnalyzer } from '../timeframe/multiTimeframeAnalyzer';
 import { ExchangeAvailability } from './exchangeAvailability';
+import { MacroAnalyzer } from './macroAnalyzer';
 import {
     calculatePortfolioAllocation,
     calculateHoldTime,
@@ -65,6 +68,24 @@ export class SignalGenerator {
         timeframe: Timeframe = Timeframe.ONE_HOUR
     ): Promise<Signal | null> {
         const { prices, volumes, pair, marketType, currentPrice } = marketData;
+
+        // ============================================
+        // STEP 0: MACRO ECONOMIC DATA CHECK
+        // Read macro data FIRST, then decide if signal should be generated
+        // ============================================
+        let macroBias: MacroSignalBias | undefined;
+        try {
+            macroBias = await MacroAnalyzer.getMacroBias();
+
+            // Block signal generation during extreme events (e.g., FOMC day)
+            if (!macroBias.shouldGenerateSignals) {
+                console.log(`🚫 Macro block: Signals paused — ${macroBias.rationale[macroBias.rationale.length - 1] || 'Extreme macro event'}`);
+                return null;
+            }
+        } catch (error) {
+            console.warn('⚠️ Macro data unavailable, proceeding without macro bias:', error);
+            // Continue without macro — don't block signals if macro API fails
+        }
 
         // COMPREHENSIVE PRICE VALIDATION
         // Filter out invalid prices that would show as 0.0000 or cause errors
@@ -259,7 +280,43 @@ export class SignalGenerator {
             finalConfidence *= 0.85;
         }
 
-        const confidence = Math.round(Math.max(0, Math.min(100, finalConfidence)));
+        let confidence = Math.round(Math.max(0, Math.min(100, finalConfidence)));
+
+        // ============================================
+        // STEP 2: APPLY MACRO ECONOMIC BIAS TO CONFIDENCE
+        // ============================================
+        if (macroBias) {
+            // Get market-specific confidence modifier
+            const macroModifier = MacroAnalyzer.getMarketSpecificModifier(macroBias, marketType);
+
+            // Check if signal direction aligns with macro bias
+            const directionStr = direction as string;
+            const isAligned = MacroAnalyzer.isDirectionAligned(
+                macroBias,
+                directionStr as 'BUY' | 'SELL' | 'LONG' | 'SHORT',
+                marketType
+            );
+
+            if (isAligned) {
+                // Signal aligns with macro — boost confidence
+                confidence = Math.round(Math.min(100, confidence + Math.abs(macroModifier)));
+                console.log(`📊 Macro ALIGNED: ${pair} ${direction} confidence +${Math.abs(macroModifier)} → ${confidence}%`);
+            } else {
+                // Signal conflicts with macro — reduce confidence
+                confidence = Math.round(Math.max(0, confidence - Math.abs(macroModifier) * 0.7));
+                console.log(`📊 Macro CONFLICT: ${pair} ${direction} confidence -${Math.round(Math.abs(macroModifier) * 0.7)} → ${confidence}%`);
+            }
+
+            // During HIGH/EXTREME volatility, require higher minimum confidence
+            if (macroBias.volatilityExpected === 'EXTREME' && confidence < 80) {
+                console.log(`⚠️ Rejecting ${pair} — Extreme macro volatility requires 80%+ confidence (got ${confidence}%)`);
+                return null;
+            }
+            if (macroBias.volatilityExpected === 'HIGH' && confidence < 75) {
+                console.log(`⚠️ Rejecting ${pair} — High macro volatility requires 75%+ confidence (got ${confidence}%)`);
+                return null;
+            }
+        }
 
         // Counter-trend signals require higher confidence (80%)
         if (isCounterTrend && confidence < 80) {
@@ -566,8 +623,18 @@ export class SignalGenerator {
             detectedPatterns,
             timeframeAlignment,
             nextCandlePrediction,
-            predictionConsensus
+            predictionConsensus,
+
+            // Macro Economic Data Bias
+            macroDataBias: macroBias
         };
+
+        // Add macro rationale to signal rationale points
+        if (macroBias && macroBias.rationale.length > 0 && signal.rationalePoints) {
+            // Prepend macro context as first rationale point
+            const macroSummary = `📊 Macro: ${macroBias.overallBias.replace('_', ' ')} bias — ${macroBias.rationale[0]}`;
+            signal.rationalePoints = [macroSummary, ...signal.rationalePoints];
+        }
 
         return signal;
     }

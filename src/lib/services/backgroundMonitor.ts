@@ -127,11 +127,12 @@ export class BackgroundMonitor {
                     tp3HitTime: tp3Hit && !signal.tp3Hit ? new Date() : signal.tp3HitTime,
                 };
 
-                // Auto-complete ONLY if TP2 or TP3 hit FOR THE FIRST TIME and TP1 was already hit
-                // This prevents signals from completing without hitting any TP
+                // Auto-complete if TP3 is hit (max profit) OR if TP2 is hit for the first time
                 const tp2JustHit = tp2Hit && !signal.tp2Hit;
                 const tp3JustHit = tp3Hit && !signal.tp3Hit;
-                const shouldComplete = (tp2JustHit || tp3JustHit) && signal.tp1Hit;
+
+                // FIX: If TP3 is hit, always complete. If TP2 just hit, complete.
+                const shouldComplete = (tp3Hit && signal.tp1Hit) || (tp2JustHit && signal.tp1Hit);
 
                 if (shouldComplete) {
                     console.log(`✅ Auto-completing signal: ${signal.pair} ${signal.direction} (+${profitLoss.toFixed(2)}%) [TP1✓ TP2${signal.tp2Hit ? '✓' : tp2JustHit ? '🆕' : '⏳'} TP3${signal.tp3Hit ? '✓' : tp3JustHit ? '🆕' : '⏳'}]`);
