@@ -13,15 +13,15 @@ export function formatPrice(price: number, maxDecimals: number = 2): string {
     else if (price < 100) {
         return price.toFixed(Math.min(3, maxDecimals));
     }
-    // For medium prices ($100-$10,000), show 2 decimals
+    // For medium prices ($100-$10,000), show up to maxDecimals
     else if (price < 10000) {
-        return price.toFixed(2);
+        return price.toFixed(Math.min(2, maxDecimals));
     }
-    // For large prices (>$10,000), show with comma separators and 2 decimals
+    // For large prices (>$10,000), show with comma separators
     else {
         return price.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+            minimumFractionDigits: Math.min(2, maxDecimals),
+            maximumFractionDigits: maxDecimals
         });
     }
 }

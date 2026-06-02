@@ -11,6 +11,7 @@ import { PredictionDisplay } from './PredictionDisplay';
 import { PatternDisplay } from './PatternDisplay';
 import { TimeframeDisplay } from './TimeframeDisplay';
 import { TradingViewWidget } from './TradingViewWidget';
+import { AdvancedSignalView } from './AdvancedSignalView';
 
 interface SignalCardProps {
     signal: Signal;
@@ -19,6 +20,7 @@ interface SignalCardProps {
 
 export function SignalCard({ signal, onClick }: SignalCardProps) {
     const [showChart, setShowChart] = useState(false);
+    const [showAdvanced, setShowAdvanced] = useState(false);
     
     const isBuy = signal.direction === SignalDirection.BUY || signal.direction === SignalDirection.LONG;
     const isActive = signal.status === SignalStatus.ACTIVE;
@@ -416,7 +418,7 @@ export function SignalCard({ signal, onClick }: SignalCardProps) {
 
             {/* TradingView Chart Expansion */}
             <AnimatePresence>
-                {showChart && (
+                {showChart && !showAdvanced && (
                     <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
@@ -434,25 +436,58 @@ export function SignalCard({ signal, onClick }: SignalCardProps) {
                         />
                     </motion.div>
                 )}
+                {showAdvanced && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-4 pt-4 border-t border-border/30 overflow-hidden"
+                    >
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-bold text-primary">Advanced Analysis</span>
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">{signal.pair}</span>
+                        </div>
+                        <AdvancedSignalView signal={signal} />
+                    </motion.div>
+                )}
             </AnimatePresence>
 
             {/* Footer Time & Actions */}
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/30">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setShowChart(!showChart);
-                    }}
-                    className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border",
-                        showChart 
-                            ? "bg-primary/20 text-primary border-primary/30" 
-                            : "bg-muted/30 text-muted-foreground hover:bg-muted/50 border-border/50 hover:text-foreground"
-                    )}
-                >
-                    <BarChart2 className="w-3.5 h-3.5" />
-                    {showChart ? "Hide Chart" : "View Chart"}
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowChart(!showChart);
+                            if (!showChart) setShowAdvanced(false);
+                        }}
+                        className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border",
+                            showChart 
+                                ? "bg-primary/20 text-primary border-primary/30" 
+                                : "bg-muted/30 text-muted-foreground hover:bg-muted/50 border-border/50 hover:text-foreground"
+                        )}
+                    >
+                        <BarChart2 className="w-3.5 h-3.5" />
+                        {showChart ? "Hide Chart" : "Basic Chart"}
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowAdvanced(!showAdvanced);
+                            if (!showAdvanced) setShowChart(false);
+                        }}
+                        className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border",
+                            showAdvanced 
+                                ? "bg-primary/20 text-primary border-primary/30" 
+                                : "bg-muted/30 text-muted-foreground hover:bg-muted/50 border-border/50 hover:text-foreground"
+                        )}
+                    >
+                        <Target className="w-3.5 h-3.5" />
+                        {showAdvanced ? "Hide Advanced" : "Advanced"}
+                    </button>
+                </div>
                 <div className="text-[10px] text-muted-foreground flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     {formatTimeAgo(signal.timestamp)}

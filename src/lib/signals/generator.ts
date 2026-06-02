@@ -419,11 +419,33 @@ export class SignalGenerator {
         const confidenceMultiplier = confidence / 100;
         const sentimentAdjustment = Math.abs(sentimentScore.overall) / 100;
 
+        // Find recent swing high/low for better SL placement
+        // Reduced lookback to 8 candles for tighter, more recent structural stops
+        const lookbackPeriod = 8;
+        const recentPrices = prices.slice(Math.max(0, prices.length - lookbackPeriod));
+        const swingHigh = Math.max(...recentPrices);
+        const swingLow = Math.min(...recentPrices);
+
         if (direction === SignalDirection.BUY || direction === SignalDirection.LONG) {
             // For buy signals
-            // Stop loss: tighter for high confidence
-            const slMultiplier = 1.5 - (confidenceMultiplier * 0.3);
-            stopLoss = entryPrice - (atr * slMultiplier);
+            // Calculate ATR-based SL as a baseline (tightened multiplier)
+            const slMultiplier = 1.0 - (confidenceMultiplier * 0.2); // max 1.0 ATR, min 0.8 ATR
+            const baselineSl = entryPrice - (atr * slMultiplier);
+
+            // Technical SL: Just below recent swing low
+            const technicalSl = swingLow - (atr * 0.2);
+
+            // Check if technical SL is reasonable (not too tight, not too wide)
+            const minSlDistance = atr * 0.5; // Minimum 0.5x ATR
+            const maxSlDistance = atr * 1.5; // Maximum 1.5x ATR (this keeps it visually tight on the chart!)
+            const techSlDistance = entryPrice - technicalSl;
+
+            // If technical SL is too wide or too tight, strictly use baseline ATR
+            if (techSlDistance > maxSlDistance || techSlDistance < minSlDistance) {
+                stopLoss = baselineSl;
+            } else {
+                stopLoss = technicalSl;
+            }
 
             // Take profit: INCREASED slightly for better targets
             let tpMultiplier = 4.0 + (confidenceMultiplier * 3.0); // Was 3.5 + 2.5, now 4.0 + 3.0
@@ -433,19 +455,30 @@ export class SignalGenerator {
             }
             takeProfit = entryPrice + (atr * tpMultiplier);
 
-            // Adjust based on Bollinger Bands
-            if (stopLoss > bollingerBands.lower) {
-                stopLoss = bollingerBands.lower * 0.995;
-            }
-            // Set TP near upper band if very bullish
+            // Set TP near upper band if very bullish, but only if it's higher than our calculated TP
             if (sentimentScore.overall > 50 && takeProfit < bollingerBands.upper) {
                 takeProfit = bollingerBands.upper * 0.98;
             }
         } else {
             // For sell signals
-            // Stop loss: tighter for high confidence
-            const slMultiplier = 1.5 - (confidenceMultiplier * 0.3);
-            stopLoss = entryPrice + (atr * slMultiplier);
+            // Calculate ATR-based SL as a baseline (tightened multiplier)
+            const slMultiplier = 1.0 - (confidenceMultiplier * 0.2); // max 1.0 ATR, min 0.8 ATR
+            const baselineSl = entryPrice + (atr * slMultiplier);
+
+            // Technical SL: Just above recent swing high
+            const technicalSl = swingHigh + (atr * 0.2);
+
+            // Check if technical SL is reasonable (not too tight, not too wide)
+            const minSlDistance = atr * 0.5; // Minimum 0.5x ATR
+            const maxSlDistance = atr * 1.5; // Maximum 1.5x ATR (keeps it tight and visual)
+            const techSlDistance = technicalSl - entryPrice;
+
+            // If technical SL is too wide or too tight, strictly use baseline ATR
+            if (techSlDistance > maxSlDistance || techSlDistance < minSlDistance) {
+                stopLoss = baselineSl;
+            } else {
+                stopLoss = technicalSl;
+            }
 
             // Take profit: INCREASED slightly for better targets
             let tpMultiplier = 4.0 + (confidenceMultiplier * 3.0); // Was 3.5 + 2.5, now 4.0 + 3.0
@@ -455,11 +488,7 @@ export class SignalGenerator {
             }
             takeProfit = entryPrice - (atr * tpMultiplier);
 
-            // Adjust based on Bollinger Bands
-            if (stopLoss < bollingerBands.upper) {
-                stopLoss = bollingerBands.upper * 1.005;
-            }
-            // Set TP near lower band if very bearish
+            // Set TP near lower band if very bearish, but only if it's lower than our calculated TP
             if (sentimentScore.overall < -50 && takeProfit > bollingerBands.lower) {
                 takeProfit = bollingerBands.lower * 1.02;
             }

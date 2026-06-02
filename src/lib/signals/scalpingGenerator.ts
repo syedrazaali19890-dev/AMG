@@ -238,22 +238,32 @@ export class ScalpingSignalGenerator {
         direction: SignalDirection,
         prices: number[]
     ) {
-        // Calculate volatility (smaller for 5-min)
+        // Calculate volatility (standard deviation of returns)
         const volatility = this.calculateVolatility(prices);
+        
+        // For 5-minute scalping, expected move is typically 1-3x the standard deviation
+        // If volatility is extremely low (e.g., Forex), ensure a minimum threshold so TPs aren't zero
+        const safeVolatility = Math.max(volatility, 0.0005); 
+
+        // Dynamic targets based on the specific asset's real-time volatility
+        const tp1Dist = safeVolatility * 1.5; // ~1.5x volatility
+        const tp2Dist = safeVolatility * 3.0; // ~3.0x volatility
+        const tp3Dist = safeVolatility * 4.5; // ~4.5x volatility
+        const slDist = safeVolatility * 1.0;  // tight 1.0x volatility stop
 
         if (direction === SignalDirection.BUY || direction === SignalDirection.LONG) {
             return {
-                tp1: entryPrice * 1.010, // 1.0% - quick target
-                tp2: entryPrice * 1.020, // 2.0% - main target
-                tp3: entryPrice * 1.030, // 3.0% - bonus target
-                stopLoss: entryPrice * 0.993 // -0.7% stop
+                tp1: entryPrice * (1 + tp1Dist), 
+                tp2: entryPrice * (1 + tp2Dist), 
+                tp3: entryPrice * (1 + tp3Dist), 
+                stopLoss: entryPrice * (1 - slDist) 
             };
         } else {
             return {
-                tp1: entryPrice * 0.990, // 1.0%
-                tp2: entryPrice * 0.980, // 2.0%
-                tp3: entryPrice * 0.970, // 3.0%
-                stopLoss: entryPrice * 1.007 // -0.7%
+                tp1: entryPrice * (1 - tp1Dist),
+                tp2: entryPrice * (1 - tp2Dist),
+                tp3: entryPrice * (1 - tp3Dist),
+                stopLoss: entryPrice * (1 + slDist)
             };
         }
     }
