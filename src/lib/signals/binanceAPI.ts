@@ -50,9 +50,10 @@ export class BinanceAPI {
     /**
      * Get current prices for multiple symbols
      */
-    static async getMultiplePrices(symbols: string[]): Promise<Map<string, number>> {
+    static async getMultiplePrices(symbols: string[], isFuture: boolean = false): Promise<Map<string, number>> {
         try {
-            const response = await fetch(`${this.BASE_URL}/ticker/price`);
+            const baseUrl = isFuture ? 'https://fapi.binance.com/fapi/v1' : this.BASE_URL;
+            const response = await fetch(`${baseUrl}/ticker/price`);
 
             if (!response.ok) {
                 throw new Error(`Binance API error: ${response.status}`);
@@ -61,9 +62,9 @@ export class BinanceAPI {
             const data: BinanceTickerPrice[] = await response.json();
             const priceMap = new Map<string, number>();
 
-            // Filter for requested symbols
+            // Filter for requested symbols (if empty, return all)
             for (const ticker of data) {
-                if (symbols.includes(ticker.symbol)) {
+                if (symbols.length === 0 || symbols.includes(ticker.symbol)) {
                     priceMap.set(ticker.symbol, parseFloat(ticker.price));
                 }
             }
@@ -100,11 +101,13 @@ export class BinanceAPI {
     static async getKlines(
         symbol: string,
         interval: string = '1h',
-        limit: number = 100
+        limit: number = 100,
+        isFuture: boolean = false
     ): Promise<number[][]> {
         try {
+            const baseUrl = isFuture ? 'https://fapi.binance.com/fapi/v1' : this.BASE_URL;
             const response = await fetch(
-                `${this.BASE_URL}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
+                `${baseUrl}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
             );
 
             if (!response.ok) {
@@ -148,27 +151,45 @@ export class BinanceAPI {
     /**
      * Get real-time prices for all our crypto pairs
      */
-    static async getAllCryptoPrices(): Promise<Map<string, number>> {
-        const cryptoPairs = [
-            'BTCUSDT',
-            'ETHUSDT',
-            'BNBUSDT',
-            'XRPUSDT',
-            'ADAUSDT',
-            'SOLUSDT',
-            'DOTUSDT',
-            'MATICUSDT',
-            'AVAXUSDT',
-            'LINKUSDT'
-        ];
+    static async getAllCryptoPrices(isFuture: boolean = false): Promise<Map<string, number>> {
+        // Fetch ALL USDT pairs by passing an empty array
+        const allPrices = await this.getMultiplePrices([], isFuture);
+        const usdtPrices = new Map<string, number>();
 
-        return await this.getMultiplePrices(cryptoPairs);
+        // Exclude fiat and stablecoin base pairs
+        const excludedBases = ['USDC', 'FDUSD', 'TUSD', 'BUSD', 'USDP', 'EUR', 'GBP', 'TRY', 'RUB', 'BRL', 'ZAR', 'UAH', 'ARS', 'RON'];
+
+        allPrices.forEach((price, symbol) => {
+            // Only allow standard English alphanumeric uppercase symbols (A-Z and 0-9)
+            const isStandardSymbol = /^[A-Z0-9]+USDT$/.test(symbol);
+            const isExcluded = excludedBases.some(base => symbol === `${base}USDT`);
+
+            if (isStandardSymbol && !isExcluded && !symbol.includes('UP') && !symbol.includes('DOWN') && !symbol.includes('BULL') && !symbol.includes('BEAR')) {
+                usdtPrices.set(symbol, price);
+            }
+        });
+
+        return usdtPrices;
+    }
+
+    /**
+     * Get all active USDT pairs dynamically from Binance
+     */
+    static async getAllUSDTPairs(isFuture: boolean = false): Promise<string[]> {
+        try {
+            const prices = await this.getAllCryptoPrices(isFuture);
+            return Array.from(prices.keys()).map(symbol => this.binanceSymbolToPair(symbol));
+        } catch (error) {
+            console.error('Failed to fetch all USDT pairs from Binance', error);
+            // Return a fallback list
+            return ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT'];
+        }
     }
 
     /**
      * Get market data with real prices and historical data
      */
-    static async getMarketDataWithRealPrices(pair: string): Promise<{
+    static async getMarketDataWithRealPrices(pair: string, isFuture: boolean = false): Promise<{
         currentPrice: number;
         prices: number[];
         volumes: number[];
@@ -178,7 +199,7 @@ export class BinanceAPI {
             const symbol = this.pairToBinanceSymbol(pair);
 
             // Get historical klines (100 hours of data)
-            const klines = await this.getKlines(symbol, '1h', 100);
+            const klines = await this.getKlines(symbol, '1h', 100, isFuture);
 
             const prices: number[] = [];
             const volumes: number[] = [];
@@ -212,7 +233,7 @@ export class BinanceAPI {
      * Get scalping market data with real prices (5-minute candles)
      * Optimized for short-term scalping signals
      */
-    static async getScalpingMarketData(pair: string): Promise<{
+    static async getScalpingMarketData(pair: string, isFuture: boolean = false): Promise<{
         currentPrice: number;
         prices: number[];
         volumes: number[];
@@ -224,7 +245,7 @@ export class BinanceAPI {
             const symbol = this.pairToBinanceSymbol(pair);
 
             // Get 5-minute klines (48 candles = 4 hours of data for scalping)
-            const klines = await this.getKlines(symbol, '5m', 48);
+            const klines = await this.getKlines(symbol, '5m', 48, isFuture);
 
             const prices: number[] = [];
             const volumes: number[] = [];

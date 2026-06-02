@@ -1,14 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { Signal, SignalDirection, SignalStatus } from '@/lib/signals/types';
 import { formatPrice, formatPercentage, formatTimeAgo, cn } from '@/lib/utils';
-import { TrendingUp, TrendingDown, Clock, Target, Shield, DollarSign } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { TrendingUp, TrendingDown, Clock, Target, Shield, DollarSign, BarChart2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { NewsIndicator } from './NewsIndicator';
 import { MarketAnalysisDisplay } from './MarketAnalysisDisplay';
 import { PredictionDisplay } from './PredictionDisplay';
 import { PatternDisplay } from './PatternDisplay';
 import { TimeframeDisplay } from './TimeframeDisplay';
+import { TradingViewWidget } from './TradingViewWidget';
 
 interface SignalCardProps {
     signal: Signal;
@@ -16,6 +18,8 @@ interface SignalCardProps {
 }
 
 export function SignalCard({ signal, onClick }: SignalCardProps) {
+    const [showChart, setShowChart] = useState(false);
+    
     const isBuy = signal.direction === SignalDirection.BUY || signal.direction === SignalDirection.LONG;
     const isActive = signal.status === SignalStatus.ACTIVE;
     const isProfit = (signal.profitLossPercentage || 0) > 0;
@@ -35,7 +39,6 @@ export function SignalCard({ signal, onClick }: SignalCardProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            whileHover={{ scale: 1.01 }}
             transition={{ duration: 0.2 }}
             className={cn(
                 'relative overflow-hidden rounded-lg border-2 p-4 transition-all',
@@ -411,8 +414,45 @@ export function SignalCard({ signal, onClick }: SignalCardProps) {
             {/* News and Economic Events */}
             <NewsIndicator signal={signal} />
 
-            {/* Footer Time */}
-            <div className="flex items-center justify-end mt-2 pt-2 border-t border-border/30">
+            {/* TradingView Chart Expansion */}
+            <AnimatePresence>
+                {showChart && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-4 pt-4 border-t border-border/30 overflow-hidden"
+                    >
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-bold">Interactive Chart</span>
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">{signal.pair}</span>
+                        </div>
+                        <TradingViewWidget 
+                            symbol={signal.pair} 
+                            height={350} 
+                            isFuture={signal.signalType === 'FUTURE'} 
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Footer Time & Actions */}
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/30">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setShowChart(!showChart);
+                    }}
+                    className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border",
+                        showChart 
+                            ? "bg-primary/20 text-primary border-primary/30" 
+                            : "bg-muted/30 text-muted-foreground hover:bg-muted/50 border-border/50 hover:text-foreground"
+                    )}
+                >
+                    <BarChart2 className="w-3.5 h-3.5" />
+                    {showChart ? "Hide Chart" : "View Chart"}
+                </button>
                 <div className="text-[10px] text-muted-foreground flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     {formatTimeAgo(signal.timestamp)}

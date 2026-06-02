@@ -85,16 +85,16 @@ useEffect(() => {
     localStorage.setItem('selectedConfidence', selectedConfidence);
 }, [selectedConfidence]);
 
-// Load signals from SignalManager on mount and refresh every second
+// Load signals from SignalManager once on mount (only to restore session if they already selected)
 useEffect(() => {
     const loadSignals = () => {
         const activeSignals = SignalManager.getActiveSignals('standard');
-        setSignals(activeSignals);
+        // Only set if we actually have them, but don't overwrite if we are generating
+        if (activeSignals.length > 0) {
+            setSignals(activeSignals);
+        }
     };
-
     loadSignals();
-    const interval = setInterval(loadSignals, 1000);
-    return () => clearInterval(interval);
 }, []);
 
 // Auto-adjust selected directions when signal type changes
@@ -126,21 +126,7 @@ useEffect(() => {
     return () => clearInterval(interval);
 }, [autoGenEnabled]);
 
-// AUTO-START: When market and type are selected, ALWAYS start auto-generation
-useEffect(() => {
-    if (!selectedMarket || !selectedType) return;
-
-    console.log('🚀 Starting automatic signal generation...');
-
-    // ALWAYS start auto-generation (generates signals immediately + schedules future ones)
-    AutoGenerator.startAutoGeneration('standard', {
-        market: selectedMarket,
-        signalType: selectedType,
-        enabled: true
-    });
-    setAutoGenEnabled(true);
-
-}, [selectedMarket, selectedType]); // Run when market/type changes
+// Removed the auto-start useEffect. Auto-generation will only start if the user clicks the "Enable Auto-Gen" button.
 
 // Apply confidence and direction filters
 const confidenceFilteredSignals = filterSignalsByConfidence(signals, selectedConfidence);

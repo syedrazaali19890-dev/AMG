@@ -4,6 +4,7 @@ import { SignalGenerator } from '../signals/generator';
 import { ScalpingSignalGenerator } from '../signals/scalpingGenerator';
 import { OnChainSignalGenerator } from '../signals/onChainGenerator';
 import { MarketDataManager } from '../signals/marketData';
+import { BinanceAPI } from '../signals/binanceAPI';
 
 /**
  * Auto Generator Service
@@ -132,10 +133,17 @@ export class AutoGenerator {
      * Generate standard signals
      */
     private static async generateStandardSignals(config: GenerationConfig): Promise<Signal[]> {
-        const allPairs = MarketDataManager.getAllPairs();
-        const filteredPairs = allPairs.filter(({ marketType }) =>
-            config.market === 'CRYPTO' ? marketType === MarketType.CRYPTO : marketType === MarketType.FOREX
-        );
+        let filteredPairs: { pair: string; marketType: MarketType }[] = [];
+
+        if (config.market === 'CRYPTO') {
+            // Dynamically fetch ALL active crypto pairs from Binance (including all altcoins)
+            const isFuture = config.signalType === 'FUTURE';
+            const allCryptoPairs = await BinanceAPI.getAllUSDTPairs(isFuture);
+            filteredPairs = allCryptoPairs.map(pair => ({ pair, marketType: MarketType.CRYPTO }));
+        } else {
+            const allPairs = MarketDataManager.getAllPairs();
+            filteredPairs = allPairs.filter(({ marketType }) => marketType === MarketType.FOREX);
+        }
 
         const signalType = config.signalType === 'SPOT' ? SignalType.SPOT : SignalType.FUTURE;
 
@@ -143,7 +151,7 @@ export class AutoGenerator {
         const signals: Signal[] = [];
         for (const { pair, marketType } of filteredPairs) {
             try {
-                const marketData = await MarketDataManager.generateMarketData(pair, marketType);
+                const marketData = await MarketDataManager.generateMarketData(pair, marketType, 100, signalType);
                 const signal = await SignalGenerator.generateSignal(marketData, signalType);
                 if (signal) {
                     signals.push(signal);
@@ -161,13 +169,20 @@ export class AutoGenerator {
      * Generate scalping signals
      */
     private static async generateScalpingSignals(config: GenerationConfig): Promise<Signal[]> {
-        const allPairs = MarketDataManager.getAllPairs();
-        const filteredPairs = allPairs
-            .filter(({ marketType }) =>
-                config.market === 'CRYPTO' ? marketType === MarketType.CRYPTO : marketType === MarketType.FOREX
-            )
-            .sort(() => Math.random() - 0.5)
-            .slice(0, 30); // Random 30 pairs
+        let filteredPairs: { pair: string; marketType: MarketType }[] = [];
+
+        if (config.market === 'CRYPTO') {
+            // Dynamically fetch ALL active crypto pairs from Binance (including all altcoins)
+            const isFuture = config.signalType === 'FUTURE';
+            const allCryptoPairs = await BinanceAPI.getAllUSDTPairs(isFuture);
+            filteredPairs = allCryptoPairs.map(pair => ({ pair, marketType: MarketType.CRYPTO }));
+        } else {
+            const allPairs = MarketDataManager.getAllPairs();
+            filteredPairs = allPairs.filter(({ marketType }) => marketType === MarketType.FOREX);
+        }
+
+        // For scalping, take a random subset to prevent overloading
+        filteredPairs = filteredPairs.sort(() => Math.random() - 0.5).slice(0, 40);
 
         const signalType = config.signalType === 'SPOT' ? SignalType.SPOT : SignalType.FUTURE;
 

@@ -1,4 +1,4 @@
-import { MarketType } from './types';
+import { MarketType, SignalType } from './types';
 import { BinanceAPI } from './binanceAPI';
 import { ExnessAPI } from './exnessAPI';
 
@@ -14,11 +14,12 @@ export class ScalpingMarketData {
      * @param marketType CRYPTO or FOREX
      * @param candleCount Number of 5-min candles (default 48 = 4 hours)
      */
-    static async generateScalpingData(pair: string, marketType: MarketType, candleCount: number = 48) {
+    static async generateScalpingData(pair: string, marketType: MarketType, candleCount: number = 48, signalType?: SignalType) {
         // Try to fetch real Binance data for crypto pairs
         if (marketType === MarketType.CRYPTO) {
             try {
-                const binanceData = await BinanceAPI.getScalpingMarketData(pair);
+                const isFuture = signalType === SignalType.FUTURE;
+                const binanceData = await BinanceAPI.getScalpingMarketData(pair, isFuture);
 
                 return {
                     pair,

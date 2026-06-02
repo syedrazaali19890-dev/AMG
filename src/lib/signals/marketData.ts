@@ -1,6 +1,6 @@
 // Market Data Management
 
-import { MarketType, MarketData } from './types';
+import { MarketType, MarketData, SignalType } from './types';
 import { BinanceAPI } from './binanceAPI';
 import { MexcAPI } from './mexcAPI';
 import { ExnessAPI } from './exnessAPI';
@@ -98,11 +98,13 @@ export class MarketDataManager {
     static async generateMarketData(
         pair: string,
         marketType: MarketType,
-        dataPoints: number = 100
+        dataPoints: number = 100,
+        signalType?: SignalType
     ): Promise<MarketData> {
         if (marketType === MarketType.CRYPTO) {
             try {
-                const binanceData = await BinanceAPI.getMarketDataWithRealPrices(pair);
+                const isFuture = signalType === SignalType.FUTURE;
+                const binanceData = await BinanceAPI.getMarketDataWithRealPrices(pair, isFuture);
                 return {
                     pair,
                     marketType,

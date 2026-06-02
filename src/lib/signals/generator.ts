@@ -123,17 +123,17 @@ export class SignalGenerator {
         // === MEAN REVERSION SIGNALS (Reversal Trading) ===
 
         // RSI Analysis with Momentum Confirmation
-        if (rsi < 30 && momentum > -1.5) {
+        if (rsi < 30 && momentum > -1.0) {
             // Oversold + momentum slowing = SAFE reversal entry
             buyScore += 25;
-        } else if (rsi < 40 && momentum > 0) {
-            // Slightly oversold + momentum turning positive
+        } else if (rsi < 40 && momentum > -0.5) {
+            // Slightly oversold + momentum improving
             buyScore += 15;
-        } else if (rsi > 70) {
-            // Overbought = potential reversal SHORT
+        } else if (rsi > 70 && momentum < 1.0) {
+            // Overbought + momentum slowing = SAFE reversal SHORT
             sellScore += 25;
-        } else if (rsi > 60 && momentum < 0) {
-            // Slightly overbought + momentum turning negative
+        } else if (rsi > 60 && momentum < 0.5) {
+            // Slightly overbought + momentum weakening
             sellScore += 15;
         }
 
@@ -215,8 +215,9 @@ export class SignalGenerator {
         const recentHigh = Math.max(...recentHighs);
         const pullbackPercent = ((recentHigh - currentPrice) / recentHigh) * 100;
 
-        // For LONG/BUY: require 0.5-1.5% pullback from recent high
-        const hasPullback = pullbackPercent >= 0.5 && pullbackPercent <= 1.5;
+        // For LONG/BUY: require at least 0.5% pullback from recent high
+        // Upper bound removed so it can catch deeper oversold opportunities
+        const hasPullback = pullbackPercent >= 0.5;
 
         if (buyScore >= BUY_THRESHOLD && buyScore > sellScore) {
             // LONG/BUY signals require pullback confirmation
@@ -424,8 +425,8 @@ export class SignalGenerator {
             const slMultiplier = 1.5 - (confidenceMultiplier * 0.3);
             stopLoss = entryPrice - (atr * slMultiplier);
 
-            // Take profit: INCREASED by 50% for better targets
-            let tpMultiplier = 3.5 + (confidenceMultiplier * 2.5); // Was 2.5 + 1.5, now 3.5 + 2.5
+            // Take profit: INCREASED slightly for better targets
+            let tpMultiplier = 4.0 + (confidenceMultiplier * 3.0); // Was 3.5 + 2.5, now 4.0 + 3.0
             if (sentimentScore.overall > 30) {
                 // Bullish news supports higher TP
                 tpMultiplier += sentimentAdjustment * 2; // Was 1.5, now 2
@@ -446,8 +447,8 @@ export class SignalGenerator {
             const slMultiplier = 1.5 - (confidenceMultiplier * 0.3);
             stopLoss = entryPrice + (atr * slMultiplier);
 
-            // Take profit: INCREASED by 50% for better targets
-            let tpMultiplier = 3.5 + (confidenceMultiplier * 2.5); // Was 2.5 + 1.5, now 3.5 + 2.5
+            // Take profit: INCREASED slightly for better targets
+            let tpMultiplier = 4.0 + (confidenceMultiplier * 3.0); // Was 3.5 + 2.5, now 4.0 + 3.0
             if (sentimentScore.overall < -30) {
                 // Bearish news supports lower TP
                 tpMultiplier += sentimentAdjustment * 2; // Was 1.5, now 2

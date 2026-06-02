@@ -35,7 +35,7 @@ export class ScalpingSignalGenerator {
         signalType: SignalType
     ): Promise<Signal | null> {
         // Get 5-minute candle data (now fetches real Binance prices)
-        const data = await ScalpingMarketData.generateScalpingData(pair, marketType, 48);
+        const data = await ScalpingMarketData.generateScalpingData(pair, marketType, 48, signalType);
         const { prices, volumes } = data;
         const currentPrice = prices[prices.length - 1];
 
@@ -62,14 +62,14 @@ export class ScalpingSignalGenerator {
         let sellScore = 0;
 
         // RSI Scoring (HIGHER WEIGHT - RSI is critical for scalping!)
-        if (rsi < 45) {
+        if (rsi < 35) {
             buyScore += 30; // Oversold - strong buy signal
             // Prevent SHORT when oversold
-            if (rsi < 35) sellScore = 0;
-        } else if (rsi > 55) {
+            if (rsi < 25) sellScore = 0;
+        } else if (rsi > 65) {
             sellScore += 30; // Overbought - strong sell signal
             // Prevent LONG when overbought
-            if (rsi > 65) buyScore = 0;
+            if (rsi > 75) buyScore = 0;
         }
 
         // MACD Scoring
