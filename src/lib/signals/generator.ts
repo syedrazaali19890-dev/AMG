@@ -540,6 +540,27 @@ export class SignalGenerator {
             return null;
         }
 
+        // ============================================
+        // ENTRY ZONE CALCULATION
+        // Provides a price range for entry instead of a single price
+        // Helps users set limit orders and avoid late entries
+        // ============================================
+        let entryZoneHigh: number;
+        let entryZoneLow: number;
+        let suggestedLimitEntry: number;
+
+        if (direction === SignalDirection.BUY || direction === SignalDirection.LONG) {
+            // For BUY/LONG: zone is below current price (pullback expected)
+            entryZoneHigh = entryPrice;
+            entryZoneLow = entryPrice - (atr * 0.3);  // 0.3 ATR below
+            suggestedLimitEntry = entryPrice - (atr * 0.2); // 0.2 ATR below (sweet spot)
+        } else {
+            // For SELL/SHORT: zone is above current price (bounce expected)
+            entryZoneLow = entryPrice;
+            entryZoneHigh = entryPrice + (atr * 0.3);  // 0.3 ATR above
+            suggestedLimitEntry = entryPrice + (atr * 0.2); // 0.2 ATR above (sweet spot)
+        }
+
         // Generate signal ID
         const id = `${pair.replace('/', '')}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -591,6 +612,9 @@ export class SignalGenerator {
             status: SignalStatus.ACTIVE,
             pair,
             entryPrice,
+            entryZoneHigh,
+            entryZoneLow,
+            suggestedLimitEntry,
             currentPrice,
             availableExchanges, // Include exchange availability
             stopLoss,
@@ -888,6 +912,64 @@ export class SignalGenerator {
         }
 
         return signals;
+    }
+
+    /**
+     * Generate signals with STREAMING - fires callback as each signal is ready
+     * Solves the "late entry" problem by showing signals immediately instead of
+     * waiting for all 90+ pairs to complete analysis
+     * 
+     * @param marketDataList Array of market data for all pairs
+     * @param signalType Type of signals (SPOT/FUTURE)
+     * @param onSignalReady Callback fired immediately when a signal is generated
+     * @param onProgress Callback for progress updates (completed, total)
+     * @param timeframe Candlestick timeframe
+     */
+    static async generateSignalsStreaming(
+        marketDataList: MarketData[],
+        signalType: SignalType,
+        onSignalReady: (signal: Signal) => void,
+        onProgress?: (completed: number, total: number) => void,
+        timeframe: Timeframe = Timeframe.ONE_HOUR
+    ): Promise<Signal[]> {
+        const total = marketDataList.length;
+        let completed = 0;
+        const allSignals: Signal[] = [];
+
+        // Process pairs in small concurrent batches for speed + responsiveness
+        // Batch size of 5 means we don't overwhelm the API but still process fast
+        const BATCH_SIZE = 5;
+
+        for (let i = 0; i < marketDataList.length; i += BATCH_SIZE) {
+            const batch = marketDataList.slice(i, i + BATCH_SIZE);
+
+            const results = await Promise.allSettled(
+                batch.map(marketData =>
+                    this.generateSignal(marketData, signalType, timeframe)
+                )
+            );
+
+            // Process each result in the batch immediately
+            for (const result of results) {
+                completed++;
+
+                if (result.status === 'fulfilled' && result.value) {
+                    const signal = result.value;
+                    allSignals.push(signal);
+                    // 🚀 Fire callback IMMEDIATELY — signal appears in UI right away
+                    onSignalReady(signal);
+                } else if (result.status === 'rejected') {
+                    console.error('Signal generation failed:', result.reason);
+                }
+
+                // Update progress
+                if (onProgress) {
+                    onProgress(completed, total);
+                }
+            }
+        }
+
+        return allSignals;
     }
 
     /**

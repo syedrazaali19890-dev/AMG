@@ -259,19 +259,50 @@ export function SignalCard({ signal, onClick }: SignalCardProps) {
                     </div>
                 </div>
             )}
-            {/* Price Information */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                <div className="glass-dark rounded-lg p-2">
-                    <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                        <DollarSign className="w-3 h-3" />
-                        Entry Price
+            {/* Price Information & Entry Zone */}
+            <div className="mb-3">
+                {signal.entryZoneLow && signal.entryZoneHigh ? (
+                    <div className="glass-dark rounded-lg p-3">
+                        <div className="flex justify-between items-center mb-2">
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                <DollarSign className="w-3 h-3" />
+                                Entry Zone
+                            </div>
+                            <div className="text-xs font-bold font-mono text-primary/90">
+                                {formatPrice(Math.min(signal.entryZoneLow, signal.entryZoneHigh), 5)} - {formatPrice(Math.max(signal.entryZoneLow, signal.entryZoneHigh), 5)}
+                            </div>
+                        </div>
+                        
+                        {/* Suggested Limit Order */}
+                        {signal.suggestedLimitEntry && (
+                            <div className="mt-2 pt-2 border-t border-border/50 flex items-start gap-2 bg-primary/5 -mx-3 -mb-3 p-3 rounded-b-lg">
+                                <div className="text-primary mt-0.5">💡</div>
+                                <div>
+                                    <div className="text-xs font-bold text-primary tracking-wide">
+                                        Limit Order @ {formatPrice(signal.suggestedLimitEntry, 5)}
+                                    </div>
+                                    <div className="text-[10px] text-primary/70 mt-0.5">
+                                        Recommended entry for better risk/reward
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                    <div className="font-bold">{formatPrice(signal.entryPrice, 5)}</div>
-                </div>
-                <div className="glass-dark rounded-lg p-2">
-                    <div className="text-xs text-muted-foreground mb-1">Current Price</div>
-                    <div className="font-bold">{formatPrice(signal.currentPrice, 5)}</div>
-                </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="glass-dark rounded-lg p-2">
+                            <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                                <DollarSign className="w-3 h-3" />
+                                Entry Price
+                            </div>
+                            <div className="font-bold">{formatPrice(signal.entryPrice, 5)}</div>
+                        </div>
+                        <div className="glass-dark rounded-lg p-2">
+                            <div className="text-xs text-muted-foreground mb-1">Current Price</div>
+                            <div className="font-bold">{formatPrice(signal.currentPrice, 5)}</div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Highest/Lowest Price Tracking */}

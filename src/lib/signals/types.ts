@@ -192,6 +192,10 @@ export interface Signal {
   status: SignalStatus;
   pair: string;
   entryPrice: number;
+  // Entry Zone - recommended price range for entry (prevents late entry problem)
+  entryZoneHigh?: number;   // Upper bound of entry zone (market price at signal time)
+  entryZoneLow?: number;    // Lower bound of entry zone (pullback target)
+  suggestedLimitEntry?: number; // Suggested limit order price for optimal entry
   currentPrice: number;
   mexcPrice?: number; // Optional price from MEXC for comparison
   availableExchanges?: string[]; // List of exchanges where this pair is available

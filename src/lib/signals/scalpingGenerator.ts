@@ -34,7 +34,7 @@ export class ScalpingSignalGenerator {
         marketType: MarketType,
         signalType: SignalType
     ): Promise<Signal | null> {
-        // Get 5-minute candle data (now fetches real Binance prices)
+        // Get 15-minute candle data (now fetches real Binance prices)
         const data = await ScalpingMarketData.generateScalpingData(pair, marketType, 48, signalType);
         const { prices, volumes } = data;
         const currentPrice = prices[prices.length - 1];
@@ -158,7 +158,7 @@ export class ScalpingSignalGenerator {
             signalType,
             status: SignalStatus.ACTIVE,
             timestamp: new Date(), // Correct field name!
-            timeframe: Timeframe.FIVE_MINUTES, // Scalping timeframe
+            timeframe: Timeframe.FIFTEEN_MINUTES, // Scalping timeframe
             tp1Hit: false,
             tp2Hit: false,
             tp3Hit: false,
@@ -241,7 +241,7 @@ export class ScalpingSignalGenerator {
         // Calculate volatility (standard deviation of returns)
         const volatility = this.calculateVolatility(prices);
         
-        // For 5-minute scalping, expected move is typically 1-3x the standard deviation
+        // For 15-minute scalping, expected move is typically 1-3x the standard deviation
         // If volatility is extremely low (e.g., Forex), ensure a minimum threshold so TPs aren't zero
         const safeVolatility = Math.max(volatility, 0.0005); 
 
@@ -303,7 +303,7 @@ export class ScalpingSignalGenerator {
             if (volumeRatio >= 2) reasons.push('Strong selling volume');
         }
 
-        reasons.push('5-min scalping setup - quick exit expected');
+        reasons.push('15-min scalping setup - quick exit expected');
 
         return reasons.join(' • ');
     }

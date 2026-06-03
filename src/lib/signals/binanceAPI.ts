@@ -97,6 +97,7 @@ export class BinanceAPI {
 
     /**
      * Get historical klines/candlestick data
+     * Uses server-side proxy to avoid CORS restrictions
      */
     static async getKlines(
         symbol: string,
@@ -105,25 +106,36 @@ export class BinanceAPI {
         isFuture: boolean = false
     ): Promise<number[][]> {
         try {
-            const baseUrl = isFuture ? 'https://fapi.binance.com/fapi/v1' : this.BASE_URL;
-            const response = await fetch(
-                `${baseUrl}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
-            );
+            // Use our Next.js proxy route (server-side fetch, no CORS issues)
+            const proxyUrl = `/api/binance/klines?symbol=${symbol}&interval=${interval}&limit=${limit}&future=${isFuture}`;
+            const response = await fetch(proxyUrl);
 
             if (!response.ok) {
-                throw new Error(`Binance API error: ${response.status}`);
+                throw new Error(`Klines proxy error: ${response.status}`);
             }
 
             const data = await response.json();
-            return data;
+            return data.klines;
         } catch (error) {
-            // CORS error is expected when calling Binance from browser
-            // App automatically falls back to high-quality simulated data
-            // Only show friendly message in development, not scary errors
-            if (process.env.NODE_ENV === 'development') {
-                console.info(`📊 Binance API unavailable for ${symbol} (browser CORS restriction) - using simulated data`);
+            // Fallback: try direct Binance API (works server-side, fails client-side)
+            try {
+                const baseUrl = isFuture ? 'https://fapi.binance.com/fapi/v1' : this.BASE_URL;
+                const response = await fetch(
+                    `${baseUrl}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
+                );
+
+                if (!response.ok) {
+                    throw new Error(`Binance API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data;
+            } catch (directError) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.info(`📊 Klines unavailable for ${symbol} - using simulated data`);
+                }
+                throw directError; // Re-throw for fallback mechanism in marketData.ts
             }
-            throw error; // Re-throw for fallback mechanism in marketData.ts
         }
     }
 
@@ -230,7 +242,7 @@ export class BinanceAPI {
     }
 
     /**
-     * Get scalping market data with real prices (5-minute candles)
+     * Get scalping market data with real prices (15-minute candles)
      * Optimized for short-term scalping signals
      */
     static async getScalpingMarketData(pair: string, isFuture: boolean = false): Promise<{
@@ -244,8 +256,8 @@ export class BinanceAPI {
         try {
             const symbol = this.pairToBinanceSymbol(pair);
 
-            // Get 5-minute klines (48 candles = 4 hours of data for scalping)
-            const klines = await this.getKlines(symbol, '5m', 48, isFuture);
+            // Get 15-minute klines (48 candles = 12 hours of data for scalping)
+            const klines = await this.getKlines(symbol, '15m', 48, isFuture);
 
             const prices: number[] = [];
             const volumes: number[] = [];

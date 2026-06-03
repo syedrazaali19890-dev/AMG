@@ -186,7 +186,7 @@ export default function ScalpingPage() {
                     <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-full px-6 py-3 flex items-center gap-3">
                         <Zap className="w-5 h-5 text-yellow-500 animate-pulse" />
                         <span className="text-yellow-500 font-bold text-lg">⚡ SCALPING MODE ⚡</span>
-                        <span className="text-sm text-muted-foreground">5-min candles • 1-3% targets</span>
+                        <span className="text-sm text-muted-foreground">15-min candles • 1-3% targets</span>
                     </div>
                 </div>
 

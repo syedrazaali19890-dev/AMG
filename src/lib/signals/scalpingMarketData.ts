@@ -4,15 +4,15 @@ import { ExnessAPI } from './exnessAPI';
 
 /**
  * Scalping Market Data Generator
- * Uses 5-minute candles for fast trading
+ * Uses 15-minute candles for fast trading
  */
 export class ScalpingMarketData {
     /**
-     * Generate 5-minute candle market data for scalping
+     * Generate 15-minute candle market data for scalping
      * Fetches real Binance prices for crypto pairs and Exness-compatible data for Forex
      * @param pair Trading pair (e.g., 'BTC/USDT')
      * @param marketType CRYPTO or FOREX
-     * @param candleCount Number of 5-min candles (default 48 = 4 hours)
+     * @param candleCount Number of 15-min candles (default 48 = 12 hours)
      */
     static async generateScalpingData(pair: string, marketType: MarketType, candleCount: number = 48, signalType?: SignalType) {
         // Try to fetch real Binance data for crypto pairs
@@ -28,7 +28,7 @@ export class ScalpingMarketData {
                     volumes: binanceData.volumes,
                     highs: binanceData.highs,
                     lows: binanceData.lows,
-                    timeframe: '5m' as const,
+                    timeframe: '15m' as const,
                     currentPrice: binanceData.currentPrice
                 };
             } catch (error) {
@@ -43,8 +43,8 @@ export class ScalpingMarketData {
         // Try to fetch Exness-compatible data for Forex pairs
         if (marketType === MarketType.FOREX) {
             try {
-                // Get 5-minute candles from Exness API
-                const candles = await ExnessAPI.getForexKlines(pair, '5m', candleCount);
+                // Get 15-minute candles from Exness API
+                const candles = await ExnessAPI.getForexKlines(pair, '15m', candleCount);
 
                 if (candles.length > 0) {
                     return {
@@ -54,7 +54,7 @@ export class ScalpingMarketData {
                         volumes: candles.map(c => c.volume),
                         highs: candles.map(c => c.high),
                         lows: candles.map(c => c.low),
-                        timeframe: '5m' as const,
+                        timeframe: '15m' as const,
                         currentPrice: candles[candles.length - 1].close
                     };
                 }
@@ -69,7 +69,7 @@ export class ScalpingMarketData {
         // Get base price for the pair
         const basePrice = this.getBasePrice(pair, marketType);
 
-        // Generate 5-minute candles (higher volatility than hourly)
+        // Generate 15-minute candles (higher volatility than hourly)
         const prices: number[] = [];
         const volumes: number[] = [];
         const highs: number[] = [];
@@ -77,13 +77,13 @@ export class ScalpingMarketData {
 
         let currentPrice = basePrice;
 
-        // Scalping parameters (higher volatility for 5-min candles)
+        // Scalping parameters (higher volatility for 15-min candles)
         const trendStrength = (Math.random() - 0.5) * 0.003; // 0.3% trend per candle
         const volatility = 0.002 + Math.random() * 0.003; // 0.2-0.5% volatility
         const microMovement = 0.0005; // 0.05% micro movements
 
         for (let i = 0; i < candleCount; i++) {
-            // Trend component (smaller for 5-min)
+            // Trend component (smaller for 15-min)
             const trend = currentPrice * trendStrength;
 
             // Random walk component
@@ -95,7 +95,7 @@ export class ScalpingMarketData {
             // New price
             currentPrice = Math.max(currentPrice + trend + random + micro, basePrice * 0.95);
 
-            // OHLC for this 5-min candle
+            // OHLC for this 15-min candle
             const open = i === 0 ? basePrice : prices[i - 1];
             const close = currentPrice;
             const high = Math.max(open, close) * (1 + Math.random() * 0.001); // Small wick up
@@ -118,7 +118,7 @@ export class ScalpingMarketData {
             volumes,
             highs,
             lows,
-            timeframe: '5m' as const,
+            timeframe: '15m' as const,
             currentPrice: prices[prices.length - 1]
         };
     }

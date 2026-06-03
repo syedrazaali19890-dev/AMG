@@ -277,12 +277,10 @@ const generateSignals = async () => {
         setLoadingStatus('Fetching market data...');
 
         const allPairs = MarketDataManager.getAllPairs();
-        const filteredPairs = allPairs.filter(({ marketType }) =>
-            selectedMarket === 'CRYPTO' ? marketType === MarketType.CRYPTO : marketType === MarketType.FOREX
-        );
+        const filteredPairs = allPairs.filter(({ marketType }) => marketType === MarketType.CRYPTO);
 
         setLoadingProgress(25);
-        setLoadingStatus(`Analyzing ${filteredPairs.length} pairs...`);
+        setLoadingStatus(`Fetching data for ${filteredPairs.length} pairs...`);
 
         const marketDataList = await Promise.all(
             filteredPairs.map(({ pair, marketType }) =>
@@ -290,36 +288,48 @@ const generateSignals = async () => {
             )
         );
 
-        setLoadingProgress(50);
-        setLoadingStatus('Running parallel signal generation...');
+        setLoadingProgress(40);
+        setLoadingStatus('Streaming signals — they appear as found...');
 
         const signalTypeEnum = selectedType === 'SPOT' ? SignalType.SPOT : SignalType.FUTURE;
-        const generatedSignals = await SignalGenerator.generateMultipleSignals(marketDataList, signalTypeEnum);
 
-        setLoadingProgress(90);
-        setLoadingStatus('Finalizing results...');
+        // 🚀 STREAMING: Signals appear one-by-one as they're generated
+        const allSignals = await SignalGenerator.generateSignalsStreaming(
+            marketDataList,
+            signalTypeEnum,
+            // onSignalReady — fired IMMEDIATELY when each signal is found
+            (signal) => {
+                setSignals(prev => [...prev, signal]);
 
-        // Completely replace with fresh signals
-        setSignals(generatedSignals);
+                // Show notification for first signal found
+                setNotifications(prev => {
+                    if (prev.length < 3) {
+                        return [...prev, {
+                            id: Math.random().toString(36).substring(7),
+                            signal,
+                            timestamp: Date.now()
+                        }];
+                    }
+                    return prev;
+                });
+            },
+            // onProgress — update progress bar per pair
+            (completed, total) => {
+                const progress = 40 + Math.round((completed / total) * 55);
+                setLoadingProgress(progress);
+                setLoadingStatus(`Analyzing ${completed}/${total} pairs...`);
+            }
+        );
 
         setLoadingProgress(100);
         setLoadingStatus('Complete!');
         setIsLoading(false);
 
-        if (generatedSignals.length > 0) {
+        if (allSignals.length > 0) {
             showSuccess(
-                `${generatedSignals.length} ${selectedMarket} ${selectedType} Signals`,
-                '75%+ accuracy with real-time prices'
+                `${allSignals.length} ${selectedMarket} ${selectedType} Signals`,
+                'Streamed in real-time with entry zones'
             );
-
-            // Add notifications for new signals (limit to top 3 to avoid clutter)
-            const newNotifications = generatedSignals.slice(0, 3).map(signal => ({
-                id: Math.random().toString(36).substring(7),
-                signal,
-                timestamp: Date.now()
-            }));
-
-            setNotifications(newNotifications);
         }
     } catch (error) {
         console.error('Error:', error);
@@ -451,7 +461,7 @@ return (
                         <div className="text-muted-foreground">Please select Spot or Future trading to continue</div>
                     </div>
                 </div>
-            ) : isLoading ? (
+            ) : isLoading && signals.length === 0 ? (
                 <div className="glass rounded-lg p-12 text-center">
                     <div className="space-y-4">
                         <div className="text-muted-foreground font-medium">{loadingStatus}</div>
