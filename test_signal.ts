@@ -1,6 +1,6 @@
-import { MarketDataManager } from '../src/lib/signals/marketData';
-import { SignalGenerator } from '../src/lib/signals/generator';
-import { MarketType, SignalType } from '../src/lib/signals/types';
+import { MarketDataManager } from './src/lib/signals/marketData';
+import { SignalGenerator } from './src/lib/signals/generator';
+import { MarketType, SignalType } from './src/lib/signals/types';
 
 async function test() {
     const marketData = MarketDataManager.generateSimulatedData('BTC/USDT', MarketType.CRYPTO, 100);

@@ -1,4 +1,4 @@
-import { Signal, MarketType } from '../signals/types';
+import { Signal, MarketType, SignalStatus } from '../signals/types';
 import { SignalManager } from './signalManager';
 import { fetchBinancePrice } from '../utils/binancePrices';
 import { ExnessAPI } from '../signals/exnessAPI';
@@ -61,13 +61,37 @@ export class BackgroundMonitor {
         this.updateCount++;
 
         try {
-            // Update each signal type
-            await this.updateSignalsOfType('standard');
-            await this.updateSignalsOfType('scalping');
-            await this.updateSignalsOfType('onchain');
+            // Fetch real crypto prices from local proxy (avoid CORS)
+            const cryptoPrices = new Map<string, number>();
+            try {
+                const response = await fetch('/api/binance/prices');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.prices) {
+                        for (const [symbol, price] of Object.entries(data.prices)) {
+                            cryptoPrices.set(symbol, price as number);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to fetch crypto prices from proxy:', error);
+            }
 
-            // Clear expired signals every ~5 minutes (100 updates * 3 seconds)
-            if (this.updateCount % 100 === 0) {
+            // Fetch real forex prices from alternative source
+            let forexPrices = new Map<string, number>();
+            try {
+                forexPrices = await ExnessAPI.getAllForexPrices();
+            } catch (error) {
+                console.warn('Failed to fetch forex prices:', error);
+            }
+
+            // Update each signal type
+            await this.updateSignalsOfType('standard', cryptoPrices, forexPrices);
+            await this.updateSignalsOfType('scalping', cryptoPrices, forexPrices);
+            await this.updateSignalsOfType('onchain', cryptoPrices, forexPrices);
+
+            // Clear expired signals every ~5 minutes (300 updates * 1 second)
+            if (this.updateCount % 300 === 0) {
                 SignalManager.clearExpiredSignals();
             }
         } catch (error) {
@@ -78,22 +102,39 @@ export class BackgroundMonitor {
     /**
      * Update signals of a specific type
      */
-    private static async updateSignalsOfType(type: 'standard' | 'scalping' | 'onchain'): Promise<void> {
+    private static async updateSignalsOfType(
+        type: 'standard' | 'scalping' | 'onchain',
+        cryptoPrices: Map<string, number>,
+        forexPrices: Map<string, number>
+    ): Promise<void> {
         const signals = SignalManager.getActiveSignals(type);
 
-        // DEBUG: Log signal count
-        console.log(`🔄 BackgroundMonitor: Updating ${type} signals - Found ${signals.length} active signals`);
-
         if (signals.length === 0) {
-            console.warn(`⚠️ No ${type} signals found to update`);
             return;
         }
 
         // Update each signal
         for (const signal of signals) {
             try {
-                // Simulate price movement (or fetch real price)
-                const newPrice = await this.fetchNewPrice(signal);
+                // Get price from mapped prices or fall back to simulation
+                const binanceSymbol = signal.pair.replace('/', '');
+                let newPrice = signal.currentPrice;
+
+                if (signal.marketType === MarketType.CRYPTO) {
+                    const realPrice = cryptoPrices.get(binanceSymbol);
+                    if (realPrice) {
+                        newPrice = realPrice;
+                    } else {
+                        newPrice = this.simulatePrice(signal);
+                    }
+                } else if (signal.marketType === MarketType.FOREX) {
+                    const realPrice = forexPrices.get(binanceSymbol);
+                    if (realPrice) {
+                        newPrice = realPrice;
+                    } else {
+                        newPrice = this.simulatePrice(signal);
+                    }
+                }
 
                 // Calculate RSI change based on price movement
                 const priceChange = (newPrice - signal.currentPrice) / signal.currentPrice;
@@ -109,6 +150,8 @@ export class BackgroundMonitor {
                 newRsi = Math.max(0, Math.min(100, newRsi + (Math.random() - 0.5) * 2));
 
                 // Check TP/SL levels
+                const isLong = signal.direction === 'LONG' || signal.direction === 'BUY';
+                const slHit = isLong ? newPrice <= signal.stopLoss : newPrice >= signal.stopLoss;
                 const { tp1Hit, tp2Hit, tp3Hit, profitLoss } = this.checkTPSL(signal, newPrice);
 
                 // Update signal
@@ -127,67 +170,36 @@ export class BackgroundMonitor {
                     tp3HitTime: tp3Hit && !signal.tp3Hit ? new Date() : signal.tp3HitTime,
                 };
 
-                // Auto-complete if TP3 is hit (max profit) OR if TP2 is hit for the first time
-                const tp2JustHit = tp2Hit && !signal.tp2Hit;
-                const tp3JustHit = tp3Hit && !signal.tp3Hit;
-
-                // FIX: If TP3 is hit, always complete. If TP2 just hit, complete.
-                const shouldComplete = (tp3Hit && signal.tp1Hit) || (tp2JustHit && signal.tp1Hit);
-
-                if (shouldComplete) {
-                    console.log(`✅ Auto-completing signal: ${signal.pair} ${signal.direction} (+${profitLoss.toFixed(2)}%) [TP1✓ TP2${signal.tp2Hit ? '✓' : tp2JustHit ? '🆕' : '⏳'} TP3${signal.tp3Hit ? '✓' : tp3JustHit ? '🆕' : '⏳'}]`);
-
-                    // Add to completed signals
-                    updatedSignal.status = 'COMPLETED' as any;
-                    SignalManager.completeSignal(signal.id, type);
-
-                    // Show browser notification (if permitted)
-                    this.showNotification(signal, profitLoss);
+                if (slHit) {
+                    console.log(`❌ Stop Loss hit for: ${signal.pair} ${signal.direction} (${profitLoss.toFixed(2)}%)`);
+                    SignalManager.stopSignal(signal.id, type);
+                    this.showSLNotification(signal, profitLoss);
                 } else {
-                    // Just update the signal
-                    SignalManager.updateSignal(updatedSignal, type);
+                    // Auto-complete if TP3 is hit (max profit) OR if TP2 is hit for the first time
+                    const tp2JustHit = tp2Hit && !signal.tp2Hit;
+                    const shouldComplete = (tp3Hit && signal.tp1Hit) || (tp2JustHit && signal.tp1Hit);
+
+                    if (shouldComplete) {
+                        console.log(`✅ Auto-completing signal: ${signal.pair} ${signal.direction} (+${profitLoss.toFixed(2)}%)`);
+                        updatedSignal.status = 'COMPLETED' as any;
+                        SignalManager.completeSignal(signal.id, type);
+                        this.showNotification(signal, profitLoss);
+                    } else {
+                        // Just update the signal
+                        SignalManager.updateSignal(updatedSignal, type);
+                    }
                 }
             } catch (error) {
-                // Silently continue with other signals
                 console.debug(`Error updating ${signal.pair}:`, error);
             }
         }
     }
 
     /**
-     * Fetch new price for a signal
+     * Simulate price movement for a signal (fallback when real price fails)
      */
-    private static async fetchNewPrice(signal: Signal): Promise<number> {
-        // For crypto, try to fetch real Binance price
-        if (signal.marketType === MarketType.CRYPTO) {
-            try {
-                const realPrice = await fetchBinancePrice(signal.pair);
-                if (realPrice) {
-                    console.log(`📊 ${signal.pair}: Real Binance price = ${realPrice.toFixed(8)}`);
-                    return realPrice;
-                }
-            } catch (error) {
-                // Log CORS failure for monitoring
-                console.debug(`⚠️ ${signal.pair}: Binance fetch failed, using simulation`);
-            }
-        }
-
-        // For Forex, try to fetch Exness-compatible price
-        if (signal.marketType === MarketType.FOREX) {
-            try {
-                const realPrice = await ExnessAPI.getCurrentForexPrice(signal.pair);
-                if (realPrice) {
-                    console.log(`💱 ${signal.pair}: Real Exness price = ${realPrice.toFixed(5)}`);
-                    return realPrice;
-                }
-            } catch (error) {
-                console.debug(`⚠️ ${signal.pair}: Exness fetch failed, using simulation`);
-            }
-        }
-
-        // ENHANCED SIMULATION: More aggressive movement when real prices unavailable
-        // This ensures signals complete in reasonable time
-        const baseVolatility = signal.timeframe === '5m' ? 0.003 : 0.008; // Increased from 0.002/0.005
+    private static simulatePrice(signal: Signal): number {
+        const baseVolatility = signal.timeframe === '5m' ? 0.003 : 0.008;
 
         // Add directional bias based on TP targets
         let directionBias = 0;
@@ -208,12 +220,31 @@ export class BackgroundMonitor {
         const change = (Math.random() - 0.5) * baseVolatility + directionBias;
         const newPrice = signal.currentPrice * (1 + change);
 
-        // Log simulation periodically (every ~10 updates)
+        // Log simulation periodically
         if (Math.random() < 0.1) {
             console.log(`🎲 ${signal.pair}: Simulated ${change > 0 ? '+' : ''}${(change * 100).toFixed(2)}% → ${newPrice.toFixed(8)}`);
         }
 
         return newPrice;
+    }
+
+    /**
+     * Show browser notification for Stop Loss hits
+     */
+    private static showSLNotification(signal: Signal, profitLoss: number): void {
+        if (typeof window === 'undefined') return;
+
+        if (Notification.permission === 'granted') {
+            try {
+                new Notification('❌ Stop Loss Hit', {
+                    body: `${signal.pair} ${signal.direction} - Loss: ${profitLoss.toFixed(2)}%`,
+                    icon: '/favicon.ico',
+                    tag: signal.id
+                });
+            } catch (error) {
+                console.debug('Notification error:', error);
+            }
+        }
     }
 
     /**

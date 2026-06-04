@@ -428,16 +428,16 @@ export class SignalGenerator {
 
         if (direction === SignalDirection.BUY || direction === SignalDirection.LONG) {
             // For buy signals
-            // Calculate ATR-based SL as a baseline (tightened multiplier)
-            const slMultiplier = 1.0 - (confidenceMultiplier * 0.2); // max 1.0 ATR, min 0.8 ATR
+            // Calculate ATR-based SL as a baseline (more balanced multiplier)
+            const slMultiplier = 1.2 - (confidenceMultiplier * 0.2); // max 1.2 ATR, min 1.0 ATR
             const baselineSl = entryPrice - (atr * slMultiplier);
 
             // Technical SL: Just below recent swing low
             const technicalSl = swingLow - (atr * 0.2);
 
             // Check if technical SL is reasonable (not too tight, not too wide)
-            const minSlDistance = atr * 0.5; // Minimum 0.5x ATR
-            const maxSlDistance = atr * 1.5; // Maximum 1.5x ATR (this keeps it visually tight on the chart!)
+            const minSlDistance = atr * 0.7; // Minimum 0.7x ATR
+            const maxSlDistance = atr * 1.8; // Maximum 1.8x ATR
             const techSlDistance = entryPrice - technicalSl;
 
             // If technical SL is too wide or too tight, strictly use baseline ATR
@@ -447,11 +447,11 @@ export class SignalGenerator {
                 stopLoss = technicalSl;
             }
 
-            // Take profit: INCREASED slightly for better targets
-            let tpMultiplier = 4.0 + (confidenceMultiplier * 3.0); // Was 3.5 + 2.5, now 4.0 + 3.0
+            // Take profit: Achievable targets (Range: 1.5 to 3.0 ATR)
+            let tpMultiplier = 1.5 + (confidenceMultiplier * 1.5);
             if (sentimentScore.overall > 30) {
                 // Bullish news supports higher TP
-                tpMultiplier += sentimentAdjustment * 2; // Was 1.5, now 2
+                tpMultiplier += sentimentAdjustment * 1.0;
             }
             takeProfit = entryPrice + (atr * tpMultiplier);
 
@@ -461,16 +461,16 @@ export class SignalGenerator {
             }
         } else {
             // For sell signals
-            // Calculate ATR-based SL as a baseline (tightened multiplier)
-            const slMultiplier = 1.0 - (confidenceMultiplier * 0.2); // max 1.0 ATR, min 0.8 ATR
+            // Calculate ATR-based SL as a baseline (more balanced multiplier)
+            const slMultiplier = 1.2 - (confidenceMultiplier * 0.2); // max 1.2 ATR, min 1.0 ATR
             const baselineSl = entryPrice + (atr * slMultiplier);
 
             // Technical SL: Just above recent swing high
             const technicalSl = swingHigh + (atr * 0.2);
 
             // Check if technical SL is reasonable (not too tight, not too wide)
-            const minSlDistance = atr * 0.5; // Minimum 0.5x ATR
-            const maxSlDistance = atr * 1.5; // Maximum 1.5x ATR (keeps it tight and visual)
+            const minSlDistance = atr * 0.7; // Minimum 0.7x ATR
+            const maxSlDistance = atr * 1.8; // Maximum 1.8x ATR
             const techSlDistance = technicalSl - entryPrice;
 
             // If technical SL is too wide or too tight, strictly use baseline ATR
@@ -480,11 +480,11 @@ export class SignalGenerator {
                 stopLoss = technicalSl;
             }
 
-            // Take profit: INCREASED slightly for better targets
-            let tpMultiplier = 4.0 + (confidenceMultiplier * 3.0); // Was 3.5 + 2.5, now 4.0 + 3.0
+            // Take profit: Achievable targets (Range: 1.5 to 3.0 ATR)
+            let tpMultiplier = 1.5 + (confidenceMultiplier * 1.5);
             if (sentimentScore.overall < -30) {
                 // Bearish news supports lower TP
-                tpMultiplier += sentimentAdjustment * 2; // Was 1.5, now 2
+                tpMultiplier += sentimentAdjustment * 1.0;
             }
             takeProfit = entryPrice - (atr * tpMultiplier);
 
@@ -501,7 +501,7 @@ export class SignalGenerator {
         let takeProfit3: number;
 
         if (direction === SignalDirection.BUY || direction === SignalDirection.LONG) {
-            // For LONG/BUY: TP1 at 25%, TP2 at 65%, TP3 at 85% of the move (OPTIMIZED)
+            // For LONG/BUY: TP1 at 33%, TP2 at 66%, TP3 at 100% of the move (OPTIMIZED)
             let tpDistance = takeProfit - entryPrice;
 
             // Ensure minimum distance (at least 0.5% of entry price)
@@ -511,11 +511,11 @@ export class SignalGenerator {
                 takeProfit = entryPrice + tpDistance; // Adjust main TP as well
             }
 
-            takeProfit1 = entryPrice + (tpDistance * 0.25); // 25% of move (realistic first target)
-            takeProfit2 = entryPrice + (tpDistance * 0.65); // 65% of move (solid profit)
-            takeProfit3 = entryPrice + (tpDistance * 0.85); // 85% (achievable final target)
+            takeProfit1 = entryPrice + (tpDistance * 0.33); // 33% of move (realistic first target)
+            takeProfit2 = entryPrice + (tpDistance * 0.66); // 66% of move (solid profit)
+            takeProfit3 = takeProfit;                       // 100% of move (final target)
         } else {
-            // For SHORT/SELL: TP1 at 25%, TP2 at 65%, TP3 at 85% of the move (OPTIMIZED)
+            // For SHORT/SELL: TP1 at 33%, TP2 at 66%, TP3 at 100% of the move (OPTIMIZED)
             let tpDistance = entryPrice - takeProfit;
 
             // Ensure minimum distance (at least 0.5% of entry price)
@@ -525,10 +525,9 @@ export class SignalGenerator {
                 takeProfit = entryPrice - tpDistance; // Adjust main TP as well
             }
 
-            takeProfit1 = entryPrice - (tpDistance * 0.25); // 25% of move (realistic first target)
-            takeProfit2 = entryPrice - (tpDistance * 0.65); // 65% of move (solid profit)
-            takeProfit3 = entryPrice - (tpDistance * 0.85); // 85% (achievable final target)
-
+            takeProfit1 = entryPrice - (tpDistance * 0.33); // 33% of move (realistic first target)
+            takeProfit2 = entryPrice - (tpDistance * 0.66); // 66% of move (solid profit)
+            takeProfit3 = takeProfit;                       // 100% of move (final target)
         }
 
         // Final validation: Ensure all prices are valid before creating signal

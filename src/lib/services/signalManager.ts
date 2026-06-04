@@ -161,6 +161,44 @@ export class SignalManager {
     }
 
     /**
+     * Stop a signal (Stop Loss hit) and move to completed/stopped signals
+     */
+    static stopSignal(signalId: string, type: 'standard' | 'scalping' | 'onchain'): void {
+        const signals = this.getActiveSignals(type);
+        const signalIndex = signals.findIndex(s => s.id === signalId);
+
+        if (signalIndex === -1) return;
+
+        const signal = signals[signalIndex];
+        signal.status = SignalStatus.STOPPED;
+
+        // Loss is based on the stop loss price
+        const isLong = signal.direction === 'LONG' || signal.direction === 'BUY';
+        const finalPrice = signal.stopLoss;
+
+        const finalProfit = isLong
+            ? ((finalPrice - signal.entryPrice) / signal.entryPrice) * 100
+            : ((signal.entryPrice - finalPrice) / signal.entryPrice) * 100;
+
+        // Add to completed signals
+        const completed = this.getCompletedSignals();
+        completed.push({
+            ...signal,
+            status: SignalStatus.STOPPED,
+            profitLossPercentage: finalProfit,
+            completedAt: new Date().toISOString(),
+            isScalping: type === 'scalping',
+            isOnChain: type === 'onchain'
+        });
+
+        localStorage.setItem(this.COMPLETED_SIGNALS_KEY, JSON.stringify(completed));
+
+        // Remove from active signals
+        signals.splice(signalIndex, 1);
+        this.setActiveSignals(signals, type);
+    }
+
+    /**
      * Get all completed signals
      */
     static getCompletedSignals(): any[] {

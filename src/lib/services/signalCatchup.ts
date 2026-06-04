@@ -117,8 +117,13 @@ export class SignalCatchup {
                 tp3HitTime: tp3Hit && !signal.tp3HitTime ? new Date() : signal.tp3HitTime,
             };
 
-            // Complete signal if TP2 or TP3 hit
-            if (shouldComplete) {
+            const slHit = isLong ? currentPrice <= signal.stopLoss : currentPrice >= signal.stopLoss;
+
+            // Complete signal if TP2 or TP3 hit, or stop if SL hit
+            if (slHit) {
+                SignalManager.stopSignal(signal.id, type);
+                console.log(`❌ ${signal.pair}: Stop Loss HIT during catchup! (${currentPrice.toFixed(8)} <= ${signal.stopLoss.toFixed(8)})`);
+            } else if (shouldComplete) {
                 SignalManager.completeSignal(signal.id, type);
                 console.log(`🎯 ${signal.pair}: Signal COMPLETED!`);
             } else {

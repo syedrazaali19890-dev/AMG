@@ -80,6 +80,9 @@ export function SignalCard({ signal, onClick }: SignalCardProps) {
                                 <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground uppercase tracking-wider">
                                     {signal.marketType}
                                 </span>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider">
+                                    {signal.timeframe || '1h'}
+                                </span>
                             </div>
 
                             {/* Exchange Availability Badges */}
