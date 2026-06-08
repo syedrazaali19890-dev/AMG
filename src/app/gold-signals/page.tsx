@@ -489,7 +489,7 @@ export default function GoldSignalsPage() {
     useEffect(() => {
         const autoSubscribe = async () => {
             if (typeof window !== 'undefined' && 'Notification' in window) {
-                if (Notification.permission !== 'denied') {
+                if (Notification.permission === 'granted') {
                     const token = await requestNotificationPermission();
                     if (token) {
                         setIsSubscribed(true);
@@ -499,7 +499,7 @@ export default function GoldSignalsPage() {
             }
         };
 
-        const savedSub = localStorage.getItem('goldPushSubscribed') !== 'false';
+        const savedSub = localStorage.getItem('goldPushSubscribed') === 'true';
         if (savedSub) {
             autoSubscribe();
         } else {

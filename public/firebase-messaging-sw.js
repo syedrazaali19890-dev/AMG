@@ -5,7 +5,7 @@ importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-comp
 
 // Initialize Firebase App in service worker context
 firebase.initializeApp({
-  apiKey: "AIzaSyBl0sJ2w4LGVxcVBR-5fHaO-ZlE54zVuoc",
+  apiKey: "AIzaSyBl0sJ2w4LGVXcVBR-5fHaO-ZlE54zVuoc",
   authDomain: "amgtrading-bd5e4.firebaseapp.com",
   projectId: "amgtrading-bd5e4",
   storageBucket: "amgtrading-bd5e4.firebasestorage.app",

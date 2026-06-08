@@ -487,7 +487,7 @@ export default function ScalpingV2Page() {
     useEffect(() => {
         const autoSubscribe = async () => {
             if (typeof window !== 'undefined' && 'Notification' in window) {
-                if (Notification.permission !== 'denied') {
+                if (Notification.permission === 'granted') {
                     const token = await requestNotificationPermission();
                     if (token) {
                         setIsSubscribed(true);
@@ -497,7 +497,7 @@ export default function ScalpingV2Page() {
             }
         };
 
-        const savedSub = localStorage.getItem('cryptoPushSubscribed') !== 'false';
+        const savedSub = localStorage.getItem('cryptoPushSubscribed') === 'true';
         if (savedSub) {
             autoSubscribe();
         } else {

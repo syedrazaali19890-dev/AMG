@@ -44,9 +44,30 @@ export async function requestNotificationPermission(): Promise<string | null> {
 
     console.log('Notification permission granted.');
 
+    // Register service worker manually to ensure path is resolved correctly in Next.js
+    console.log('Registering service worker...');
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+      scope: '/'
+    });
+    
+    // Wait for service worker to become active to avoid PushManager subscription issues
+    console.log('Waiting for service worker to become active...');
+    if (registration.installing) {
+      await new Promise<void>((resolve) => {
+        registration.installing?.addEventListener('statechange', (e) => {
+          if ((e.target as ServiceWorker).state === 'activated') {
+            resolve();
+          }
+        });
+      });
+    }
+    await navigator.serviceWorker.ready;
+    console.log('Service worker registered and ready:', registration);
+
     // Get FCM registration token
     const token = await getToken(messaging, {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+      serviceWorkerRegistration: registration
     });
 
     if (token) {
