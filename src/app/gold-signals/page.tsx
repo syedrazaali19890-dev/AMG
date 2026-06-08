@@ -7,43 +7,20 @@ import {
     Zap, Target, TrendingUp, TrendingDown, Shield, Activity,
     Clock, Volume2, ChevronDown, ChevronUp, RefreshCw, AlertTriangle,
     Check, X, Layers, BarChart3, Crosshair, ArrowUpRight, ArrowDownRight,
-    Star, Award, Eye, Gauge, Bell, BellOff
+    Star, Award, Eye, Gauge, DollarSign, Gem, Bell, BellOff
 } from 'lucide-react';
-import { ScalpingV2Generator, ScalpingV2Signal } from '@/lib/signals/scalpingV2Generator';
+import { GoldSignalGenerator, GoldSignal, GOLD_PAIRS, GOLD_EXTENDED_PAIRS } from '@/lib/signals/goldSignalGenerator';
 import { ICTEngine } from '@/lib/signals/ictEngine';
 import { MarketType, SignalType } from '@/lib/signals/types';
-import { BinanceAPI } from '@/lib/signals/binanceAPI';
+import { ExnessAPI } from '@/lib/signals/exnessAPI';
 import { ScalpingV2Chart } from '@/components/ui/ScalpingV2Chart';
 import { requestNotificationPermission } from '@/lib/firebase/client';
 
-const CRYPTO_PAIRS = [
-    'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT',
-    'DOGE/USDT', 'ADA/USDT', 'AVAX/USDT', 'DOT/USDT', 'LINK/USDT',
-    'UNI/USDT', 'NEAR/USDT', 'SUI/USDT', 'OP/USDT', 'ARB/USDT',
-    'MATIC/USDT', 'ATOM/USDT', 'FIL/USDT', 'INJ/USDT', 'RNDR/USDT',
-    'FET/USDT', 'TIA/USDT', 'PEPE/USDT', 'WLD/USDT'
-];
-
-const POPULAR_COINS = [
-    'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT',
-    'DOGE/USDT', 'ADA/USDT', 'AVAX/USDT', 'DOT/USDT', 'LINK/USDT',
-    'UNI/USDT', 'NEAR/USDT', 'SUI/USDT', 'OP/USDT', 'ARB/USDT',
-    'MATIC/USDT', 'ATOM/USDT', 'FIL/USDT', 'INJ/USDT', 'RNDR/USDT',
-    'FET/USDT', 'TIA/USDT', 'PEPE/USDT', 'WLD/USDT', 'LTC/USDT',
-    'BCH/USDT', 'TRX/USDT', 'ETC/USDT', 'ICP/USDT', 'LDO/USDT',
-    'APT/USDT', 'STX/USDT', 'FTM/USDT', 'IMX/USDT', 'GRT/USDT',
-    'AAVE/USDT', 'EGLD/USDT', 'SAND/USDT', 'GALA/USDT', 'RUNE/USDT',
-    'SHIB/USDT', 'APE/USDT', 'DYDX/USDT', 'FLOW/USDT', 'AXS/USDT',
-    'THETA/USDT', 'JTO/USDT', 'PYTH/USDT', 'JUP/USDT', 'W/USDT',
-    'ENA/USDT', 'STRK/USDT', 'AEVO/USDT'
-];
-
 function formatPrice(price: number): string {
-    if (!price || isNaN(price)) return '0.0000';
-    if (price >= 1000) return price.toFixed(2);
+    if (!price || isNaN(price)) return '0.00';
+    if (price >= 100) return price.toFixed(2);
     if (price >= 1) return price.toFixed(4);
-    if (price >= 0.01) return price.toFixed(6);
-    return price.toFixed(8);
+    return price.toFixed(6);
 }
 
 function formatTime(seconds: number): string {
@@ -52,8 +29,8 @@ function formatTime(seconds: number): string {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Signal Score Badge
-function ScoreBadge({ score, grade }: { score: number; grade: string }) {
+// Signal Score Badge (Gold themed)
+function GoldScoreBadge({ score, grade }: { score: number; grade: string }) {
     const gradeColors: Record<string, string> = {
         'ELITE': 'from-amber-400 to-yellow-500',
         'A+': 'from-emerald-400 to-green-500',
@@ -81,13 +58,13 @@ function ScoreBadge({ score, grade }: { score: number; grade: string }) {
 }
 
 // Score Breakdown Component
-function ScoreBreakdown({ score }: { score: ScalpingV2Signal['score'] }) {
+function GoldScoreBreakdown({ score }: { score: GoldSignal['score'] }) {
     const items = [
-        { label: 'Daily Bias', value: score.dailyBias, max: 15, color: 'bg-blue-500' },
-        { label: 'Liquidity Sweep', value: score.liquiditySweep, max: 20, color: 'bg-purple-500' },
+        { label: 'Daily Bias', value: score.dailyBias, max: 15, color: 'bg-amber-500' },
+        { label: 'Liquidity Sweep', value: score.liquiditySweep, max: 20, color: 'bg-yellow-500' },
         { label: 'Order Block', value: score.orderBlock, max: 15, color: 'bg-emerald-500' },
         { label: 'FVG', value: score.fvg, max: 10, color: 'bg-cyan-500' },
-        { label: 'OTE', value: score.ote, max: 15, color: 'bg-amber-500' },
+        { label: 'OTE', value: score.ote, max: 15, color: 'bg-orange-500' },
         { label: 'CHoCH/BOS', value: score.choch, max: 10, color: 'bg-rose-500' },
         { label: 'Volume', value: score.volume, max: 10, color: 'bg-indigo-500' },
         { label: 'Session', value: score.session, max: 5, color: 'bg-teal-500' },
@@ -116,7 +93,7 @@ function ScoreBreakdown({ score }: { score: ScalpingV2Signal['score'] }) {
 }
 
 // Confirmation Checklist
-function ConfirmationChecklist({ signal }: { signal: ScalpingV2Signal }) {
+function GoldConfirmationChecklist({ signal }: { signal: GoldSignal }) {
     const checks = [
         {
             label: 'Daily Bias',
@@ -203,11 +180,11 @@ function ConfirmationChecklist({ signal }: { signal: ScalpingV2Signal }) {
     );
 }
 
-// Signal Card
-function ICTSignalCard({ signal, index }: { signal: ScalpingV2Signal; index: number }) {
+// Gold Signal Card
+function GoldSignalCard({ signal, index }: { signal: GoldSignal; index: number }) {
     const [expanded, setExpanded] = useState(false);
     const isBuy = signal.type === 'BUY';
-    const analysis = ScalpingV2Generator.getAnalysisSummary(signal);
+    const analysis = GoldSignalGenerator.getAnalysisSummary(signal);
 
     const dirColor = isBuy ? 'text-emerald-400' : 'text-rose-400';
     const dirBg = isBuy ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20';
@@ -215,16 +192,15 @@ function ICTSignalCard({ signal, index }: { signal: ScalpingV2Signal; index: num
         ? 'from-emerald-500/20 via-emerald-500/5 to-transparent'
         : 'from-rose-500/20 via-rose-500/5 to-transparent';
 
-    // Calculate distance from entry to current price
     const currentPrice = signal.currentPrice || signal.entry;
     let isInsideZone = false;
     let distancePct = 0;
 
     if (isBuy) {
-        isInsideZone = currentPrice <= signal.entry * 1.001; // 0.1% tolerance
+        isInsideZone = currentPrice <= signal.entry * 1.001;
         distancePct = ((currentPrice - signal.entry) / signal.entry) * 100;
     } else {
-        isInsideZone = currentPrice >= signal.entry * 0.999; // 0.1% tolerance
+        isInsideZone = currentPrice >= signal.entry * 0.999;
         distancePct = ((signal.entry - currentPrice) / signal.entry) * 100;
     }
 
@@ -241,8 +217,8 @@ function ICTSignalCard({ signal, index }: { signal: ScalpingV2Signal; index: num
             )}
 
             <div className={`relative rounded-2xl border border-white/5 bg-[#0a0a0f]/90 backdrop-blur-xl overflow-hidden`}>
-                {/* Top gradient accent */}
-                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${isBuy ? 'from-emerald-400 via-emerald-500 to-green-500' : 'from-rose-400 via-rose-500 to-red-500'}`} />
+                {/* Top gradient accent - Gold themed */}
+                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${isBuy ? 'from-amber-400 via-yellow-500 to-amber-400' : 'from-rose-400 via-rose-500 to-red-500'}`} />
 
                 {/* Card Header */}
                 <div className="p-5">
@@ -256,7 +232,9 @@ function ICTSignalCard({ signal, index }: { signal: ScalpingV2Signal; index: num
                             </div>
                             <div>
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <h3 className="font-bold text-lg text-white">{signal.pair}</h3>
+                                    <h3 className="font-bold text-lg text-white flex items-center gap-1.5">
+                                        <span className="text-amber-400">🥇</span> {signal.pair}
+                                    </h3>
                                     <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${isBuy ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>
                                         {signal.type}
                                     </span>
@@ -281,11 +259,11 @@ function ICTSignalCard({ signal, index }: { signal: ScalpingV2Signal; index: num
                                     )}
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                    HTF: 5m • LTF: 1m • {signal.sessionConfirmation.sessionName}
+                                    HTF: 5m • LTF: 1m • {signal.sessionConfirmation.sessionName} • Exness/Forex
                                 </p>
                             </div>
                         </div>
-                        <ScoreBadge score={signal.score.total} grade={signal.score.grade} />
+                        <GoldScoreBadge score={signal.score.total} grade={signal.score.grade} />
                     </div>
 
                     {/* Price Levels Grid */}
@@ -318,7 +296,7 @@ function ICTSignalCard({ signal, index }: { signal: ScalpingV2Signal; index: num
                                 <p className="font-mono font-bold text-white text-sm mt-1">1:{signal.riskRewardRatio}</p>
                             </div>
                             <div>
-                                <span className="text-[10px] uppercase tracking-wider text-blue-400/70">Daily Bias</span>
+                                <span className="text-[10px] uppercase tracking-wider text-amber-400/70">Daily Bias</span>
                                 <p className={`font-bold text-sm mt-1 ${signal.dailyBias.bias === 'BULLISH' ? 'text-emerald-400' : signal.dailyBias.bias === 'BEARISH' ? 'text-rose-400' : 'text-gray-400'}`}>
                                     {signal.dailyBias.bias}
                                 </p>
@@ -331,6 +309,30 @@ function ICTSignalCard({ signal, index }: { signal: ScalpingV2Signal; index: num
                             </div>
                         </div>
                     </div>
+
+                    {/* Gold-Specific Info */}
+                    {(signal.lotSizeRecommendation || signal.pipValue) && (
+                        <div className="rounded-xl bg-amber-500/5 border border-amber-500/10 p-3 mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <DollarSign className="w-3.5 h-3.5 text-amber-400" />
+                                <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Gold Trade Info</span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {signal.lotSizeRecommendation && (
+                                    <div className="text-xs text-muted-foreground">
+                                        <span className="text-amber-300/70">Lot Size ($100 risk):</span>{' '}
+                                        <span className="text-white font-mono">{signal.lotSizeRecommendation}</span>
+                                    </div>
+                                )}
+                                {signal.pipValue && (
+                                    <div className="text-xs text-muted-foreground">
+                                        <span className="text-amber-300/70">Pip Value:</span>{' '}
+                                        <span className="text-white font-mono text-[10px]">{signal.pipValue}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Quick Confirmation Icons */}
                     <div className="flex items-center gap-2 flex-wrap mb-3">
@@ -380,10 +382,10 @@ function ICTSignalCard({ signal, index }: { signal: ScalpingV2Signal; index: num
                                 {/* Live Candlestick Chart */}
                                 <div>
                                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                                        <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                                        Live Candlestick Chart
+                                        <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+                                        Live Gold Chart
                                     </h4>
-                                    <ScalpingV2Chart signal={signal} />
+                                    <ScalpingV2Chart signal={signal as any} />
                                 </div>
 
                                 {/* Score Breakdown */}
@@ -392,7 +394,7 @@ function ICTSignalCard({ signal, index }: { signal: ScalpingV2Signal; index: num
                                         <Gauge className="w-3.5 h-3.5" />
                                         Signal Score Breakdown
                                     </h4>
-                                    <ScoreBreakdown score={signal.score} />
+                                    <GoldScoreBreakdown score={signal.score} />
                                 </div>
 
                                 {/* Confirmation Checklist */}
@@ -401,7 +403,7 @@ function ICTSignalCard({ signal, index }: { signal: ScalpingV2Signal; index: num
                                         <Shield className="w-3.5 h-3.5" />
                                         Entry Conditions Checklist
                                     </h4>
-                                    <ConfirmationChecklist signal={signal} />
+                                    <GoldConfirmationChecklist signal={signal} />
                                 </div>
 
                                 {/* Analysis Summary */}
@@ -417,17 +419,19 @@ function ICTSignalCard({ signal, index }: { signal: ScalpingV2Signal; index: num
                                     </div>
                                 </div>
 
-                                {/* Risk Management */}
+                                {/* Gold Risk Management */}
                                 <div className="rounded-xl bg-amber-500/5 border border-amber-500/10 p-4">
                                     <h4 className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-2">
                                         <AlertTriangle className="w-3.5 h-3.5" />
-                                        Risk Management
+                                        Gold Risk Management
                                     </h4>
                                     <div className="text-xs text-muted-foreground space-y-1">
                                         <p>• Stop Loss: Below Liquidity Sweep Low</p>
                                         <p>• Move SL to Break-Even after TP1 hit</p>
                                         <p>• TP1 (1:3 RR) → TP2 (1:5 RR) → TP3 (Opposite Liquidity Pool)</p>
                                         <p>• Max risk: 1-2% of account per trade</p>
+                                        <p>• Gold spreads widen during Asian session — prefer London/NY</p>
+                                        <p>• Watch for USD news (NFP, CPI, FOMC) — major gold movers</p>
                                     </div>
                                 </div>
                             </div>
@@ -440,7 +444,7 @@ function ICTSignalCard({ signal, index }: { signal: ScalpingV2Signal; index: num
 }
 
 // Session Status Widget
-function SessionStatus() {
+function GoldSessionStatus() {
     const [session, setSession] = useState(ICTEngine.getCurrentSession());
 
     useEffect(() => {
@@ -467,18 +471,16 @@ function SessionStatus() {
 // MAIN PAGE
 // ============================================
 
-export default function ScalpingV2Page() {
-    const [signals, setSignals] = useState<ScalpingV2Signal[]>([]);
-    const [runningSignals, setRunningSignals] = useState<ScalpingV2Signal[]>([]);
+export default function GoldSignalsPage() {
+    const [signals, setSignals] = useState<GoldSignal[]>([]);
+    const [runningSignals, setRunningSignals] = useState<GoldSignal[]>([]);
     const [activeTab, setActiveTab] = useState<'NEW' | 'RUNNING'>('NEW');
     const [isLoading, setIsLoading] = useState(false);
-    const [selectedMarket, setSelectedMarket] = useState<'CRYPTO' | null>(null);
+    const [selectedMarket, setSelectedMarket] = useState<'GOLD' | null>(null);
     const [lastGenerated, setLastGenerated] = useState<Date | null>(null);
     const [scanCount, setScanCount] = useState(0);
-    const [nextScanTime, setNextScanTime] = useState<number>(60);
-    const [scannedPairs, setScannedPairs] = useState<string[]>([]);
-    const [isPairsOpen, setIsPairsOpen] = useState(false);
-    const [newPairInput, setNewPairInput] = useState('');
+    const [nextScanTime, setNextScanTime] = useState<number>(120); // 2 min interval for gold
+    const [scannedPairs, setScannedPairs] = useState<string[]>(GOLD_PAIRS);
     const [runningSubFilter, setRunningSubFilter] = useState<'ACTIVE' | 'COMPLETED' | 'STOPPED'>('ACTIVE');
     const isLoadedRef = useRef(false);
 
@@ -491,13 +493,13 @@ export default function ScalpingV2Page() {
                     const token = await requestNotificationPermission();
                     if (token) {
                         setIsSubscribed(true);
-                        localStorage.setItem('cryptoPushSubscribed', 'true');
+                        localStorage.setItem('goldPushSubscribed', 'true');
                     }
                 }
             }
         };
 
-        const savedSub = localStorage.getItem('cryptoPushSubscribed') !== 'false';
+        const savedSub = localStorage.getItem('goldPushSubscribed') !== 'false';
         if (savedSub) {
             autoSubscribe();
         } else {
@@ -508,13 +510,13 @@ export default function ScalpingV2Page() {
     const handleSubscribe = async () => {
         if (isSubscribed) {
             setIsSubscribed(false);
-            localStorage.setItem('cryptoPushSubscribed', 'false');
+            localStorage.setItem('goldPushSubscribed', 'false');
         } else {
             try {
                 const token = await requestNotificationPermission();
                 if (token) {
                     setIsSubscribed(true);
-                    localStorage.setItem('cryptoPushSubscribed', 'true');
+                    localStorage.setItem('goldPushSubscribed', 'true');
                 }
             } catch (error) {
                 console.error('Failed to subscribe to push notifications:', error);
@@ -532,19 +534,19 @@ export default function ScalpingV2Page() {
     // Load saved signals from localStorage on mount
     useEffect(() => {
         try {
-            const savedNew = localStorage.getItem('v2NewSetups');
-            const savedRunning = localStorage.getItem('v2RunningTrades');
+            const savedNew = localStorage.getItem('goldNewSetups');
+            const savedRunning = localStorage.getItem('goldRunningTrades');
             if (savedNew) setSignals(JSON.parse(savedNew));
             if (savedRunning) setRunningSignals(JSON.parse(savedRunning));
 
-            const savedPairs = localStorage.getItem('v2ScannedPairs');
+            const savedPairs = localStorage.getItem('goldScannedPairs');
             if (savedPairs) {
                 setScannedPairs(JSON.parse(savedPairs));
             } else {
-                setScannedPairs(CRYPTO_PAIRS);
+                setScannedPairs(GOLD_PAIRS);
             }
         } catch (e) {
-            console.error('Failed to load saved V2 signals', e);
+            console.error('Failed to load saved Gold signals', e);
         } finally {
             isLoadedRef.current = true;
         }
@@ -553,49 +555,47 @@ export default function ScalpingV2Page() {
     // Sync to localStorage
     useEffect(() => {
         if (!isLoadedRef.current) return;
-        localStorage.setItem('v2NewSetups', JSON.stringify(signals));
+        localStorage.setItem('goldNewSetups', JSON.stringify(signals));
     }, [signals]);
 
     useEffect(() => {
         if (!isLoadedRef.current) return;
-        localStorage.setItem('v2ScannedPairs', JSON.stringify(scannedPairs));
+        localStorage.setItem('goldScannedPairs', JSON.stringify(scannedPairs));
     }, [scannedPairs]);
 
     useEffect(() => {
         if (!isLoadedRef.current) return;
-        localStorage.setItem('v2RunningTrades', JSON.stringify(runningSignals));
+        localStorage.setItem('goldRunningTrades', JSON.stringify(runningSignals));
     }, [runningSignals]);
 
     const generateSignals = useCallback(async () => {
         setIsLoading(true);
         setScanCount(0);
-        setNextScanTime(60);
+        setNextScanTime(120);
 
         try {
-            // SHIFT OLD SIGNALS: Move any existing active setups from signals list to runningSignals before scanning
+            // Move existing active or pending signals to running
             setRunningSignals(prev => {
                 const activeFromCurrent = signals.filter(s => s.status === 'ACTIVE' || s.status === 'PENDING');
-                // Filter out duplicates
                 const uniqueNew = activeFromCurrent.filter(
                     s => !prev.some(p => p.id === s.id)
                 );
                 return [...prev, ...uniqueNew];
             });
 
-            // Scan all user configured pairs for ICT setups
-            const selectedPairs = scannedPairs.length > 0 ? [...scannedPairs] : [...CRYPTO_PAIRS];
+            const selectedPairs = scannedPairs.length > 0 ? [...scannedPairs] : [...GOLD_PAIRS];
 
-            const generated = await ScalpingV2Generator.generateSignals(
+            const generated = await GoldSignalGenerator.generateSignals(
                 selectedPairs,
-                MarketType.CRYPTO,
+                MarketType.FOREX,
                 SignalType.FUTURE
             );
 
             setScanCount(selectedPairs.length);
             setSignals(generated);
             setLastGenerated(new Date());
-            setNextScanTime(60);
-            setActiveTab('NEW'); // Switch to New setups tab
+            setNextScanTime(120);
+            setActiveTab('NEW');
 
             // Broadcast push notification for newly generated signals
             if (generated.length > 0) {
@@ -613,13 +613,13 @@ export default function ScalpingV2Page() {
                 }
             }
         } catch (error) {
-            console.error('V2 Signal generation failed:', error);
+            console.error('Gold Signal generation failed:', error);
         } finally {
             setIsLoading(false);
         }
     }, [signals, scannedPairs]);
 
-    // Auto-scan timer ticker (5 minutes / 300s)
+    // Auto-scan timer (2 minutes)
     const generateSignalsRef = useRef(generateSignals);
     useEffect(() => {
         generateSignalsRef.current = generateSignals;
@@ -632,7 +632,7 @@ export default function ScalpingV2Page() {
             setNextScanTime(prev => {
                 if (prev <= 1) {
                     generateSignalsRef.current();
-                    return 60;
+                    return 120;
                 }
                 return prev - 1;
             });
@@ -641,42 +641,10 @@ export default function ScalpingV2Page() {
         return () => clearInterval(interval);
     }, [selectedMarket, isLoading]);
 
-    // Clear inactive (completed or stopped) running signals
+    // Clear inactive running signals
     const clearInactiveRunning = () => {
-        setRunningSignals(prev => {
-            const activeOnly = prev.filter(s => s.status === 'ACTIVE');
-            return activeOnly;
-        });
+        setRunningSignals(prev => prev.filter(s => s.status === 'ACTIVE'));
     };
-
-    const handleAddPair = useCallback(() => {
-        if (!newPairInput.trim()) return;
-
-        let clean = newPairInput.trim().toUpperCase();
-        // Remove spaces
-        clean = clean.replace(/\s+/g, '');
-
-        // Standardize format: if it is just "BTC", convert to "BTC/USDT"
-        if (!clean.includes('/')) {
-            // Check if it already has "USDT" at the end (e.g. BTCUSDT)
-            if (clean.endsWith('USDT')) {
-                clean = clean.replace('USDT', '/USDT');
-            } else {
-                clean = `${clean}/USDT`;
-            }
-        }
-
-        // Ensure we don't add duplicates
-        setScannedPairs(prev => {
-            if (prev.includes(clean)) return prev;
-            return [...prev, clean];
-        });
-        setNewPairInput('');
-    }, [newPairInput]);
-
-    const handleRemovePair = useCallback((pairToRemove: string) => {
-        setScannedPairs(prev => prev.filter(p => p !== pairToRemove));
-    }, []);
 
     // Auto-generate when market selected
     useEffect(() => {
@@ -686,23 +654,22 @@ export default function ScalpingV2Page() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedMarket]);
 
-    // Live price updates loop for active Scalping V2 signals
+    // Live price updates for active Gold signals
     useEffect(() => {
         if ((signals.length === 0 && runningSignals.length === 0) || isLoading) return;
 
         let active = true;
 
-        const updatePricesList = async (list: ScalpingV2Signal[]) => {
+        const updatePricesList = async (list: GoldSignal[]) => {
             return await Promise.all(
                 list.map(async (signal) => {
                     if (signal.status !== 'ACTIVE' && signal.status !== 'PENDING') return signal;
 
                     try {
-                        const symbol = BinanceAPI.pairToBinanceSymbol(signal.pair);
-                        const price = await BinanceAPI.getCurrentPrice(symbol);
+                        const price = await GoldSignalGenerator.getCurrentGoldPrice(signal.pair);
 
                         if (price && !isNaN(price) && active) {
-                            let status: ScalpingV2Signal['status'] = signal.status;
+                            let status: GoldSignal['status'] = signal.status;
                             const isBuy = signal.type === 'BUY';
 
                             if (signal.status === 'PENDING') {
@@ -740,7 +707,7 @@ export default function ScalpingV2Page() {
                                 }
                             }
 
-                            // Update candles with the latest price
+                            // Update LTF candles
                             let updatedLtfCandles = signal.ltfCandles ? [...signal.ltfCandles] : [];
                             if (updatedLtfCandles.length > 0) {
                                 const lastCandle = updatedLtfCandles[updatedLtfCandles.length - 1];
@@ -769,6 +736,7 @@ export default function ScalpingV2Page() {
                                 }
                             }
 
+                            // Update HTF candles
                             let updatedHtfCandles = signal.htfCandles ? [...signal.htfCandles] : [];
                             if (updatedHtfCandles.length > 0) {
                                 const lastCandle = updatedHtfCandles[updatedHtfCandles.length - 1];
@@ -818,7 +786,7 @@ export default function ScalpingV2Page() {
                 if (signals.length > 0) {
                     const newUpdated = await updatePricesList(signals);
                     if (active) {
-                        // Separate signals that hit SL/TP from still-active ones
+                        // Separate signals that hit SL/TP (completed/stopped) from still-active ones
                         const hitSignals = newUpdated.filter(s => s.status === 'COMPLETED' || s.status === 'STOPPED');
                         const stillActive = newUpdated.filter(s => s.status === 'ACTIVE' || s.status === 'PENDING');
 
@@ -857,11 +825,11 @@ export default function ScalpingV2Page() {
                     }
                 }
             } catch (error) {
-                console.error('Error updating live prices in loop:', error);
+                console.error('Error updating live gold prices:', error);
             }
         };
 
-        const interval = setInterval(updatePrices, 3000);
+        const interval = setInterval(updatePrices, 5000); // 5s for gold
         return () => {
             active = false;
             clearInterval(interval);
@@ -874,27 +842,27 @@ export default function ScalpingV2Page() {
 
             {/* Hero Header */}
             <div className="relative overflow-hidden">
-                {/* Background effects */}
+                {/* Background effects - Gold themed */}
                 <div className="absolute inset-0">
-                    <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
-                    <div className="absolute top-20 right-1/4 w-80 h-80 bg-cyan-500/5 rounded-full blur-3xl" />
-                    <div className="absolute bottom-0 left-1/2 w-72 h-72 bg-amber-500/3 rounded-full blur-3xl" />
+                    <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
+                    <div className="absolute top-20 right-1/4 w-80 h-80 bg-yellow-500/5 rounded-full blur-3xl" />
+                    <div className="absolute bottom-0 left-1/2 w-72 h-72 bg-orange-500/3 rounded-full blur-3xl" />
                 </div>
 
                 <div className="relative container mx-auto px-4 pt-8 pb-6">
-                    {/* V2 Badge */}
+                    {/* Gold Badge */}
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="flex items-center justify-center mb-6"
                     >
                         <div className="relative">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-purple-500/30 via-cyan-500/30 to-amber-500/30 rounded-2xl blur-md" />
+                            <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/30 via-yellow-500/30 to-orange-500/30 rounded-2xl blur-md" />
                             <div className="relative bg-[#0a0a14]/90 border border-white/10 rounded-2xl px-6 py-3 flex items-center gap-4">
                                 <div className="flex items-center gap-2">
-                                    <Zap className="w-5 h-5 text-amber-400" />
-                                    <span className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 text-lg tracking-tight">
-                                        SCALPING V2
+                                    <Gem className="w-5 h-5 text-amber-400" />
+                                    <span className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-400 text-lg tracking-tight">
+                                        GOLD SIGNALS
                                     </span>
                                 </div>
                                 <div className="h-5 w-px bg-white/10" />
@@ -902,7 +870,7 @@ export default function ScalpingV2Page() {
                                     ICT • Smart Money Concepts
                                 </span>
                                 <div className="h-5 w-px bg-white/10" />
-                                <SessionStatus />
+                                <GoldSessionStatus />
                             </div>
                         </div>
                     </motion.div>
@@ -917,12 +885,12 @@ export default function ScalpingV2Page() {
                             <h1 className="text-5xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/50">
                                 Institutional-Grade
                                 <br />
-                                <span className="bg-gradient-to-r from-purple-400 via-cyan-400 to-amber-400 bg-clip-text text-transparent">
-                                    Scalping Engine
+                                <span className="bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-400 bg-clip-text text-transparent">
+                                    Gold Trading Engine
                                 </span>
                             </h1>
                             <p className="text-muted-foreground mb-2 max-w-lg mx-auto">
-                                ICT / Smart Money Concepts based signal generation.
+                                ICT / Smart Money Concepts based XAU/USD signal generation.
                                 HTF: 5 Minute • LTF: 1 Minute
                             </p>
                             <p className="text-muted-foreground/60 text-sm mb-8 max-w-lg mx-auto">
@@ -933,14 +901,14 @@ export default function ScalpingV2Page() {
                                 <motion.button
                                     whileHover={{ scale: 1.03, y: -2 }}
                                     whileTap={{ scale: 0.98 }}
-                                    onClick={() => setSelectedMarket('CRYPTO')}
+                                    onClick={() => setSelectedMarket('GOLD')}
                                     className="relative group"
                                 >
-                                    <div className="absolute -inset-1 bg-gradient-to-r from-purple-500/40 to-cyan-500/40 rounded-2xl blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    <div className="relative px-12 py-6 rounded-2xl bg-[#0a0a14] border border-white/10 hover:border-purple-500/30 transition-all">
-                                        <span className="text-4xl mb-3 block">₿</span>
-                                        <h3 className="text-lg font-bold text-white">Cryptocurrency</h3>
-                                        <p className="text-xs text-muted-foreground mt-1">Futures • Top 24 Pairs</p>
+                                    <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/40 to-yellow-500/40 rounded-2xl blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <div className="relative px-16 py-8 rounded-2xl bg-[#0a0a14] border border-amber-500/20 hover:border-amber-500/40 transition-all">
+                                        <span className="text-5xl mb-3 block">🥇</span>
+                                        <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-400">Gold (XAU/USD)</h3>
+                                        <p className="text-xs text-muted-foreground mt-2">Forex • Exness Compatible</p>
                                     </div>
                                 </motion.button>
                             </div>
@@ -960,7 +928,7 @@ export default function ScalpingV2Page() {
                                         transition={{ delay: 0.3 + idx * 0.1 }}
                                         className="p-3 rounded-xl bg-white/[0.02] border border-white/5 text-center"
                                     >
-                                        <feat.icon className="w-5 h-5 mx-auto text-cyan-400/60 mb-1.5" />
+                                        <feat.icon className="w-5 h-5 mx-auto text-amber-400/60 mb-1.5" />
                                         <p className="text-xs font-semibold text-white/80">{feat.label}</p>
                                         <p className="text-[10px] text-muted-foreground">{feat.desc}</p>
                                     </motion.div>
@@ -978,7 +946,7 @@ export default function ScalpingV2Page() {
                                     onClick={() => setActiveTab('NEW')}
                                     className={`px-6 py-3 border-b-2 text-sm font-bold transition-all ${
                                         activeTab === 'NEW'
-                                            ? 'border-purple-500 text-purple-400'
+                                            ? 'border-amber-500 text-amber-400'
                                             : 'border-transparent text-muted-foreground hover:text-white'
                                     }`}
                                 >
@@ -988,15 +956,15 @@ export default function ScalpingV2Page() {
                                     onClick={() => setActiveTab('RUNNING')}
                                     className={`px-6 py-3 border-b-2 text-sm font-bold transition-all relative ${
                                         activeTab === 'RUNNING'
-                                            ? 'border-purple-500 text-purple-400'
+                                            ? 'border-amber-500 text-amber-400'
                                             : 'border-transparent text-muted-foreground hover:text-white'
                                     }`}
                                 >
                                     Running Trades ({runningSignals.filter(s => s.status === 'ACTIVE' || s.status === 'PENDING').length})
                                     {runningSignals.filter(s => s.status === 'ACTIVE' || s.status === 'PENDING').length > 0 && (
                                         <span className="absolute top-2.5 right-1.5 flex h-2 w-2">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                                         </span>
                                     )}
                                 </button>
@@ -1006,7 +974,7 @@ export default function ScalpingV2Page() {
                             {activeTab === 'RUNNING' && (
                                 <div className="flex gap-2 mb-6 bg-white/[0.02] p-1.5 rounded-xl border border-white/5 w-fit">
                                     {[
-                                        { key: 'ACTIVE', label: 'Active / Pending', count: runningSignals.filter(s => s.status === 'ACTIVE' || s.status === 'PENDING').length, color: 'text-cyan-400' },
+                                        { key: 'ACTIVE', label: 'Active / Pending', count: runningSignals.filter(s => s.status === 'ACTIVE' || s.status === 'PENDING').length, color: 'text-amber-400' },
                                         { key: 'COMPLETED', label: 'TP Hit', count: runningSignals.filter(s => s.status === 'COMPLETED').length, color: 'text-emerald-400' },
                                         { key: 'STOPPED', label: 'SL Hit', count: runningSignals.filter(s => s.status === 'STOPPED').length, color: 'text-rose-400' }
                                     ].map(sub => (
@@ -1044,15 +1012,15 @@ export default function ScalpingV2Page() {
                                             label: 'Pairs Scanned',
                                             value: scanCount,
                                             icon: Target,
-                                            color: 'text-cyan-400',
-                                            bg: 'bg-cyan-500/10'
+                                            color: 'text-yellow-400',
+                                            bg: 'bg-yellow-500/10'
                                         },
                                         {
                                             label: 'Elite Setups',
                                             value: signals.filter(s => s.score.grade === 'ELITE').length,
                                             icon: Star,
-                                            color: 'text-yellow-400',
-                                            bg: 'bg-yellow-500/10'
+                                            color: 'text-orange-400',
+                                            bg: 'bg-orange-500/10'
                                         },
                                         {
                                             label: 'A+ Setups',
@@ -1086,15 +1054,15 @@ export default function ScalpingV2Page() {
                                             label: 'Total Running',
                                             value: runningSignals.length,
                                             icon: Layers,
-                                            color: 'text-purple-400',
-                                            bg: 'bg-purple-500/10'
+                                            color: 'text-amber-400',
+                                            bg: 'bg-amber-500/10'
                                         },
                                         {
                                             label: 'Active / Pending',
                                             value: runningSignals.filter(s => s.status === 'ACTIVE' || s.status === 'PENDING').length,
                                             icon: Activity,
-                                            color: 'text-cyan-400',
-                                            bg: 'bg-cyan-500/10'
+                                            color: 'text-yellow-400',
+                                            bg: 'bg-yellow-500/10'
                                         },
                                         {
                                             label: 'TP Hit / Completed',
@@ -1132,112 +1100,37 @@ export default function ScalpingV2Page() {
                                 )}
                             </div>
 
-                            {/* Manage Pairs Card */}
-                            <div className="mb-6 rounded-2xl border border-white/5 bg-[#0a0a14]/60 backdrop-blur-xl overflow-hidden p-4">
-                                <button
-                                    onClick={() => setIsPairsOpen(!isPairsOpen)}
-                                    className="flex items-center justify-between w-full text-xs font-bold text-muted-foreground uppercase tracking-wider hover:text-white transition-colors"
-                                >
+                            {/* Scan pairs info */}
+                            <div className="mb-6 rounded-2xl border border-amber-500/10 bg-[#0a0a14]/60 backdrop-blur-xl overflow-hidden p-4">
+                                <div className="flex items-center justify-between text-xs text-muted-foreground">
                                     <span className="flex items-center gap-2">
-                                        <Layers className="w-4 h-4 text-cyan-400" />
-                                        Manage Scan Pairs ({scannedPairs.length})
+                                        <Gem className="w-4 h-4 text-amber-400" />
+                                        <span className="font-bold text-amber-400/80 uppercase tracking-wider">Scanning:</span>
+                                        {scannedPairs.map(pair => (
+                                            <span key={pair} className="px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 font-semibold">
+                                                {pair}
+                                            </span>
+                                        ))}
                                     </span>
-                                    <span>{isPairsOpen ? 'Hide Config' : 'Show Config'}</span>
-                                </button>
-                                
-                                {isPairsOpen && (
-                                    <div className="mt-4 pt-4 border-t border-white/5 space-y-4 animate-fade-in">
-                                        {/* Add Pair Form */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
-                                            {/* Dropdown Selector */}
-                                            <div className="flex flex-col gap-1">
-                                                <select
-                                                    onChange={(e) => {
-                                                        const val = e.target.value;
-                                                        if (val) {
-                                                            setScannedPairs(prev => {
-                                                                if (prev.includes(val)) return prev;
-                                                                return [...prev, val];
-                                                            });
-                                                            e.target.value = ''; // Reset select dropdown
-                                                        }
-                                                    }}
-                                                    className="w-full px-4 py-2 text-sm rounded-xl bg-[#0a0a14] border border-white/10 text-white focus:border-purple-500/50 focus:outline-none transition-all cursor-pointer h-[38px]"
-                                                >
-                                                    <option value="" className="text-muted-foreground">-- Select a Coin to Add --</option>
-                                                    {POPULAR_COINS.map(coin => {
-                                                        const isAlreadyAdded = scannedPairs.includes(coin);
-                                                        return (
-                                                            <option 
-                                                                key={coin} 
-                                                                value={coin} 
-                                                                disabled={isAlreadyAdded}
-                                                                className="text-white disabled:text-muted-foreground/40"
-                                                            >
-                                                                {coin} {isAlreadyAdded ? '(Added)' : ''}
-                                                            </option>
-                                                        );
-                                                    })}
-                                                </select>
-                                                <span className="text-[10px] text-muted-foreground/60 px-1">Quick-select popular coins</span>
-                                            </div>
-
-                                            {/* Custom Input */}
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="e.g. SOL, BNB/USDT"
-                                                        value={newPairInput}
-                                                        onChange={(e) => setNewPairInput(e.target.value)}
-                                                        className="flex-1 px-4 py-2 text-sm rounded-xl bg-white/5 border border-white/10 text-white placeholder-muted-foreground/50 focus:border-purple-500/50 focus:outline-none transition-colors h-[38px]"
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') handleAddPair();
-                                                        }}
-                                                    />
-                                                    <button
-                                                        onClick={handleAddPair}
-                                                        className="px-4 py-2 rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-xs font-bold transition-all shrink-0 h-[38px]"
-                                                    >
-                                                        Add Custom
-                                                    </button>
-                                                </div>
-                                                <span className="text-[10px] text-muted-foreground/60 px-1">Or type any custom USDT pair</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Chips Grid */}
-                                        <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                                            {scannedPairs.length === 0 && (
-                                                <p className="text-xs text-muted-foreground italic">No pairs configured. Scanning falls back to default 24 pairs.</p>
-                                            )}
-                                            {scannedPairs.map((pair) => (
-                                                <div
-                                                    key={pair}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-white/90"
-                                                >
-                                                    <span>{pair}</span>
-                                                    <button
-                                                        onClick={() => handleRemovePair(pair)}
-                                                        className="p-0.5 rounded-md hover:bg-white/10 text-muted-foreground hover:text-red-400 transition-colors"
-                                                    >
-                                                        <X className="w-3 h-3" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <div className="flex justify-between items-center text-[10px] text-muted-foreground pt-2 border-t border-white/5">
-                                            <span>Enter any Binance Spot/Futures USDT pair.</span>
+                                    <div className="flex items-center gap-2">
+                                        {!scannedPairs.includes('XAG/USD') && (
                                             <button
-                                                onClick={() => setScannedPairs(CRYPTO_PAIRS)}
-                                                className="hover:text-white transition-colors text-purple-400 font-bold"
+                                                onClick={() => setScannedPairs(prev => [...prev, 'XAG/USD'])}
+                                                className="text-[10px] px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-white transition-all"
                                             >
-                                                Reset to Default 24 Coins
+                                                + Add Silver (XAG/USD)
                                             </button>
-                                        </div>
+                                        )}
+                                        {scannedPairs.includes('XAG/USD') && (
+                                            <button
+                                                onClick={() => setScannedPairs(prev => prev.filter(p => p !== 'XAG/USD'))}
+                                                className="text-[10px] px-3 py-1.5 rounded-lg bg-white/5 hover:bg-rose-500/10 border border-white/10 text-muted-foreground hover:text-rose-400 transition-all"
+                                            >
+                                                Remove Silver
+                                            </button>
+                                        )}
                                     </div>
-                                )}
+                                </div>
                             </div>
 
                             {/* Action Buttons */}
@@ -1250,10 +1143,10 @@ export default function ScalpingV2Page() {
                                                 whileTap={{ scale: 0.98 }}
                                                 onClick={generateSignals}
                                                 disabled={isLoading}
-                                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-cyan-500 text-white font-bold text-sm disabled:opacity-50 hover:shadow-lg hover:shadow-purple-500/20 transition-all"
+                                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-bold text-sm disabled:opacity-50 hover:shadow-lg hover:shadow-amber-500/20 transition-all"
                                             >
                                                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                                                {isLoading ? 'Scanning Markets...' : 'Re-Scan Markets'}
+                                                {isLoading ? 'Scanning Gold...' : 'Re-Scan Gold'}
                                             </motion.button>
                                             <motion.button
                                                 whileHover={{ scale: 1.02 }}
@@ -1262,10 +1155,10 @@ export default function ScalpingV2Page() {
                                                 className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm border transition-all ${
                                                     isSubscribed
                                                         ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                                                        : 'bg-purple-500/10 border-purple-500/20 text-purple-400 hover:bg-purple-500/20'
+                                                        : 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20'
                                                 }`}
                                             >
-                                                {isSubscribed ? <Bell className="w-4 h-4 text-emerald-400" /> : <BellOff className="w-4 h-4 text-purple-400 animate-pulse" />}
+                                                {isSubscribed ? <Bell className="w-4 h-4 text-emerald-400" /> : <BellOff className="w-4 h-4 text-amber-400 animate-pulse" />}
                                                 {isSubscribed ? 'Notifications Active' : 'Enable Notifications'}
                                             </motion.button>
                                         </>
@@ -1293,10 +1186,10 @@ export default function ScalpingV2Page() {
                                             <span className="text-xs text-muted-foreground/40">•</span>
                                             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
                                                 <span className="relative flex h-2 w-2">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                                                 </span>
-                                                <span className="text-xs font-semibold font-mono text-cyan-400">
+                                                <span className="text-xs font-semibold font-mono text-amber-400">
                                                     Auto-scan: {formatTime(nextScanTime)}
                                                 </span>
                                             </div>
@@ -1312,7 +1205,7 @@ export default function ScalpingV2Page() {
                                     }}
                                     className="text-xs text-muted-foreground hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/5"
                                 >
-                                    ← Change Market
+                                    ← Back
                                 </button>
                             </div>
 
@@ -1324,14 +1217,14 @@ export default function ScalpingV2Page() {
                                     className="text-center py-20"
                                 >
                                     <div className="relative w-20 h-20 mx-auto mb-6">
-                                        <div className="absolute inset-0 rounded-full border-2 border-purple-500/20" />
-                                        <div className="absolute inset-0 rounded-full border-2 border-t-purple-400 border-r-cyan-400 border-b-transparent border-l-transparent animate-spin" />
-                                        <div className="absolute inset-3 rounded-full border-2 border-transparent border-t-amber-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
-                                        <Zap className="absolute inset-0 m-auto w-6 h-6 text-amber-400" />
+                                        <div className="absolute inset-0 rounded-full border-2 border-amber-500/20" />
+                                        <div className="absolute inset-0 rounded-full border-2 border-t-amber-400 border-r-yellow-400 border-b-transparent border-l-transparent animate-spin" />
+                                        <div className="absolute inset-3 rounded-full border-2 border-transparent border-t-orange-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
+                                        <Gem className="absolute inset-0 m-auto w-6 h-6 text-amber-400" />
                                     </div>
-                                    <h3 className="text-lg font-bold text-white mb-2">Scanning with ICT Engine</h3>
+                                    <h3 className="text-lg font-bold text-white mb-2">Scanning Gold with ICT Engine</h3>
                                     <p className="text-sm text-muted-foreground">
-                                        Analyzing market structure, liquidity, order blocks, FVGs...
+                                        Analyzing XAU/USD structure, liquidity, order blocks, FVGs...
                                     </p>
                                     <div className="flex justify-center gap-2 mt-4">
                                         {['BOS', 'CHoCH', 'FVG', 'OB', 'OTE', 'Liquidity'].map((term, i) => (
@@ -1340,7 +1233,7 @@ export default function ScalpingV2Page() {
                                                 initial={{ opacity: 0.3 }}
                                                 animate={{ opacity: [0.3, 1, 0.3] }}
                                                 transition={{ duration: 1.5, delay: i * 0.2, repeat: Infinity }}
-                                                className="text-[10px] px-2 py-1 rounded-md bg-white/5 text-muted-foreground font-mono"
+                                                className="text-[10px] px-2 py-1 rounded-md bg-amber-500/5 text-amber-400/70 font-mono"
                                             >
                                                 {term}
                                             </motion.span>
@@ -1353,7 +1246,7 @@ export default function ScalpingV2Page() {
                             {!isLoading && (activeTab === 'NEW' ? signals : filteredRunningSignals).length > 0 && (
                                 <div className="space-y-4">
                                     {(activeTab === 'NEW' ? signals : filteredRunningSignals).map((signal, idx) => (
-                                        <ICTSignalCard key={signal.id} signal={signal} index={idx} />
+                                        <GoldSignalCard key={signal.id} signal={signal} index={idx} />
                                     ))}
                                 </div>
                             )}
@@ -1368,17 +1261,17 @@ export default function ScalpingV2Page() {
                                     <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-4">
                                         <AlertTriangle className="w-8 h-8 text-amber-400" />
                                     </div>
-                                    <h3 className="text-lg font-bold text-white mb-2">No Elite/A+ Setups Found</h3>
+                                    <h3 className="text-lg font-bold text-white mb-2">No Elite/A+ Gold Setups Found</h3>
                                     <p className="text-sm text-muted-foreground max-w-md mx-auto">
                                         The ICT engine requires all conditions to be met for high-quality signals.
-                                        Market structure, liquidity sweeps, or session conditions may not be optimal right now.
+                                        Gold market structure, liquidity sweeps, or session conditions may not be optimal right now.
                                     </p>
                                     <button
                                         onClick={generateSignals}
-                                        className="mt-6 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-semibold text-sm transition-all"
+                                        className="mt-6 px-6 py-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-400 font-semibold text-sm transition-all"
                                     >
                                         <RefreshCw className="w-4 h-4 inline mr-2" />
-                                        Re-Scan Markets
+                                        Re-Scan Gold
                                     </button>
                                 </motion.div>
                             )}
@@ -1390,20 +1283,20 @@ export default function ScalpingV2Page() {
                                     animate={{ opacity: 1 }}
                                     className="text-center py-20"
                                 >
-                                    <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mx-auto mb-4">
-                                        {runningSubFilter === 'ACTIVE' && <Layers className="w-8 h-8 text-purple-400" />}
+                                    <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-4">
+                                        {runningSubFilter === 'ACTIVE' && <Layers className="w-8 h-8 text-amber-400" />}
                                         {runningSubFilter === 'COMPLETED' && <Check className="w-8 h-8 text-emerald-400" />}
                                         {runningSubFilter === 'STOPPED' && <AlertTriangle className="w-8 h-8 text-rose-400" />}
                                     </div>
                                     <h3 className="text-lg font-bold text-white mb-2">
-                                        {runningSubFilter === 'ACTIVE' && 'No Active Trades'}
+                                        {runningSubFilter === 'ACTIVE' && 'No Active Gold Trades'}
                                         {runningSubFilter === 'COMPLETED' && 'No TP Hit Trades'}
                                         {runningSubFilter === 'STOPPED' && 'No SL Hit Trades'}
                                     </h3>
                                     <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                                        {runningSubFilter === 'ACTIVE' && 'There are no active running trades currently in play.'}
-                                        {runningSubFilter === 'COMPLETED' && 'No trades have reached their Take Profit targets in this session.'}
-                                        {runningSubFilter === 'STOPPED' && 'No trades have hit their Stop Loss limits in this session.'}
+                                        {runningSubFilter === 'ACTIVE' && 'There are no active running gold trades currently in play.'}
+                                        {runningSubFilter === 'COMPLETED' && 'No gold trades have reached their Take Profit targets in this session.'}
+                                        {runningSubFilter === 'STOPPED' && 'No gold trades have hit their Stop Loss limits in this session.'}
                                     </p>
                                 </motion.div>
                             )}

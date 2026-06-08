@@ -18,6 +18,7 @@ export enum SignalDirection {
 }
 
 export enum SignalStatus {
+  PENDING = 'PENDING',
   ACTIVE = 'ACTIVE',
   COMPLETED = 'COMPLETED',
   STOPPED = 'STOPPED'

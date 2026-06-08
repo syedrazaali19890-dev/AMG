@@ -14,7 +14,7 @@ export interface ScalpingV2Signal extends ICTSignal {
     marketType: MarketType;
     signalType: SignalType;
     currentPrice: number;
-    status: 'ACTIVE' | 'COMPLETED' | 'STOPPED';
+    status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'STOPPED';
     createdAt: Date;
     htfCandles?: Candle[];
     ltfCandles?: Candle[];
@@ -113,14 +113,29 @@ export class ScalpingV2Generator {
         // Validate prices
         if (!ictSignal.entry || isNaN(ictSignal.entry) || ictSignal.entry <= 0) return null;
 
+        // Apply a small offset (0.015%) to entry to give user warning time before trigger
+        const isBuy = ictSignal.type === 'BUY';
+        const offset = ictSignal.entry * 0.00015; // 0.015% offset (approx $15 for BTC)
+        
+        const entry = isBuy ? ictSignal.entry - offset : ictSignal.entry + offset;
+        const stopLoss = isBuy ? ictSignal.stopLoss - offset : ictSignal.stopLoss + offset;
+        const tp1 = isBuy ? ictSignal.tp1 - offset : ictSignal.tp1 + offset;
+        const tp2 = isBuy ? ictSignal.tp2 - offset : ictSignal.tp2 + offset;
+        const tp3 = isBuy ? ictSignal.tp3 - offset : ictSignal.tp3 + offset;
+
         // Create V2 signal
         const v2Signal: ScalpingV2Signal = {
             ...ictSignal,
             id: `ICTV2_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             marketType,
             signalType,
+            entry,
+            stopLoss,
+            tp1,
+            tp2,
+            tp3,
             currentPrice: ltfCandles[ltfCandles.length - 1].close,
-            status: 'ACTIVE',
+            status: 'PENDING',
             createdAt: new Date(),
             htfCandles,
             ltfCandles

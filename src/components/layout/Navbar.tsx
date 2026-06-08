@@ -41,6 +41,7 @@ export function Navbar() {
         { href: '/dashboard', label: 'Standard' },
         { href: '/scalping', label: 'Scalping ⚡' },
         { href: '/scalping-v2', label: 'Scalping V2 🏛️' },
+        { href: '/gold-signals', label: 'Gold 🥇' },
         { href: '/on-chain', label: 'On-Chain 🐋' },
         { href: '/completed', label: 'Completed Signals' },
     ];

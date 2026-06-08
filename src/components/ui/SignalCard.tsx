@@ -27,6 +27,7 @@ export function SignalCard({ signal, onClick }: SignalCardProps) {
     const isProfit = (signal.profitLossPercentage || 0) > 0;
 
     const statusColors = {
+        [SignalStatus.PENDING]: 'border-amber-500/30 bg-amber-500/5',
         [SignalStatus.ACTIVE]: 'border-primary/50 bg-primary/5',
         [SignalStatus.COMPLETED]: isProfit ? 'border-success/50 bg-success/5' : 'border-muted/50 bg-muted/5',
         [SignalStatus.STOPPED]: 'border-danger/50 bg-danger/5'
@@ -141,6 +142,7 @@ export function SignalCard({ signal, onClick }: SignalCardProps) {
                     <div className="flex flex-col items-end gap-1.5">
                         <div className={cn(
                             'px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap shadow-sm',
+                            signal.status === SignalStatus.PENDING ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
                             isActive ? 'bg-primary/10 text-primary border border-primary/20' :
                                 isProfit ? 'bg-success/10 text-success border border-success/20' :
                                     'bg-muted/50 text-muted-foreground border border-muted/20'
