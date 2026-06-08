@@ -858,18 +858,18 @@ export default function GoldSignalsPage() {
                     >
                         <div className="relative">
                             <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/30 via-yellow-500/30 to-orange-500/30 rounded-2xl blur-md" />
-                            <div className="relative bg-[#0a0a14]/90 border border-white/10 rounded-2xl px-6 py-3 flex items-center gap-4">
+                            <div className="relative bg-[#0a0a14]/90 border border-white/10 rounded-2xl px-4 py-3 flex flex-col md:flex-row items-center gap-3 md:gap-4 text-center md:text-left">
                                 <div className="flex items-center gap-2">
                                     <Gem className="w-5 h-5 text-amber-400" />
                                     <span className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-400 text-lg tracking-tight">
                                         GOLD SIGNALS
                                     </span>
                                 </div>
-                                <div className="h-5 w-px bg-white/10" />
+                                <div className="hidden md:block h-5 w-px bg-white/10" />
                                 <span className="text-xs text-muted-foreground font-medium">
                                     ICT • Smart Money Concepts
                                 </span>
-                                <div className="h-5 w-px bg-white/10" />
+                                <div className="hidden md:block h-5 w-px bg-white/10" />
                                 <GoldSessionStatus />
                             </div>
                         </div>
@@ -1102,8 +1102,8 @@ export default function GoldSignalsPage() {
 
                             {/* Scan pairs info */}
                             <div className="mb-6 rounded-2xl border border-amber-500/10 bg-[#0a0a14]/60 backdrop-blur-xl overflow-hidden p-4">
-                                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                    <span className="flex items-center gap-2">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-muted-foreground gap-3">
+                                    <span className="flex flex-wrap items-center gap-2">
                                         <Gem className="w-4 h-4 text-amber-400" />
                                         <span className="font-bold text-amber-400/80 uppercase tracking-wider">Scanning:</span>
                                         {scannedPairs.map(pair => (
@@ -1134,8 +1134,8 @@ export default function GoldSignalsPage() {
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
                                     {activeTab === 'NEW' ? (
                                         <>
                                             <motion.button
@@ -1143,7 +1143,7 @@ export default function GoldSignalsPage() {
                                                 whileTap={{ scale: 0.98 }}
                                                 onClick={generateSignals}
                                                 disabled={isLoading}
-                                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-bold text-sm disabled:opacity-50 hover:shadow-lg hover:shadow-amber-500/20 transition-all"
+                                                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-bold text-sm disabled:opacity-50 hover:shadow-lg hover:shadow-amber-500/20 transition-all w-full sm:w-auto"
                                             >
                                                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                                                 {isLoading ? 'Scanning Gold...' : 'Re-Scan Gold'}
@@ -1152,7 +1152,7 @@ export default function GoldSignalsPage() {
                                                 whileHover={{ scale: 1.02 }}
                                                 whileTap={{ scale: 0.98 }}
                                                 onClick={handleSubscribe}
-                                                className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm border transition-all ${
+                                                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm border transition-all w-full sm:w-auto ${
                                                     isSubscribed
                                                         ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                                                         : 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20'
@@ -1169,7 +1169,7 @@ export default function GoldSignalsPage() {
                                                     whileHover={{ scale: 1.02 }}
                                                     whileTap={{ scale: 0.98 }}
                                                     onClick={clearInactiveRunning}
-                                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold border border-white/10 transition-all"
+                                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold border border-white/10 transition-all w-full sm:w-auto"
                                                 >
                                                     <X className="w-3.5 h-3.5" />
                                                     Clear Inactive Trades

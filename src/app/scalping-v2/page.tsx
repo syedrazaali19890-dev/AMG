@@ -890,18 +890,18 @@ export default function ScalpingV2Page() {
                     >
                         <div className="relative">
                             <div className="absolute -inset-1 bg-gradient-to-r from-purple-500/30 via-cyan-500/30 to-amber-500/30 rounded-2xl blur-md" />
-                            <div className="relative bg-[#0a0a14]/90 border border-white/10 rounded-2xl px-6 py-3 flex items-center gap-4">
+                            <div className="relative bg-[#0a0a14]/90 border border-white/10 rounded-2xl px-4 py-3 flex flex-col md:flex-row items-center gap-3 md:gap-4 text-center md:text-left">
                                 <div className="flex items-center gap-2">
                                     <Zap className="w-5 h-5 text-amber-400" />
                                     <span className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 text-lg tracking-tight">
                                         SCALPING V2
                                     </span>
                                 </div>
-                                <div className="h-5 w-px bg-white/10" />
+                                <div className="hidden md:block h-5 w-px bg-white/10" />
                                 <span className="text-xs text-muted-foreground font-medium">
                                     ICT • Smart Money Concepts
                                 </span>
-                                <div className="h-5 w-px bg-white/10" />
+                                <div className="hidden md:block h-5 w-px bg-white/10" />
                                 <SessionStatus />
                             </div>
                         </div>
@@ -1241,8 +1241,8 @@ export default function ScalpingV2Page() {
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
                                     {activeTab === 'NEW' ? (
                                         <>
                                             <motion.button
@@ -1250,7 +1250,7 @@ export default function ScalpingV2Page() {
                                                 whileTap={{ scale: 0.98 }}
                                                 onClick={generateSignals}
                                                 disabled={isLoading}
-                                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-cyan-500 text-white font-bold text-sm disabled:opacity-50 hover:shadow-lg hover:shadow-purple-500/20 transition-all"
+                                                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-cyan-500 text-white font-bold text-sm disabled:opacity-50 hover:shadow-lg hover:shadow-purple-500/20 transition-all w-full sm:w-auto"
                                             >
                                                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                                                 {isLoading ? 'Scanning Markets...' : 'Re-Scan Markets'}
@@ -1259,7 +1259,7 @@ export default function ScalpingV2Page() {
                                                 whileHover={{ scale: 1.02 }}
                                                 whileTap={{ scale: 0.98 }}
                                                 onClick={handleSubscribe}
-                                                className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm border transition-all ${
+                                                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm border transition-all w-full sm:w-auto ${
                                                     isSubscribed
                                                         ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                                                         : 'bg-purple-500/10 border-purple-500/20 text-purple-400 hover:bg-purple-500/20'
@@ -1276,7 +1276,7 @@ export default function ScalpingV2Page() {
                                                     whileHover={{ scale: 1.02 }}
                                                     whileTap={{ scale: 0.98 }}
                                                     onClick={clearInactiveRunning}
-                                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold border border-white/10 transition-all"
+                                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold border border-white/10 transition-all w-full sm:w-auto"
                                                 >
                                                     <X className="w-3.5 h-3.5" />
                                                     Clear Inactive Trades
