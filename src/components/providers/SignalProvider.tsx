@@ -20,6 +20,13 @@ export function SignalProvider({ children }: SignalProviderProps) {
         // Start background monitor
         BackgroundMonitor.start();
 
+        // Register service worker on load for PWA/FCM support
+        if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/firebase-messaging-sw.js')
+                .then(reg => console.log('✅ PWA Service Worker registered:', reg.scope))
+                .catch(err => console.warn('⚠️ Service Worker registration failed:', err));
+        }
+
         // Request notification permission
         if (typeof window !== 'undefined' && 'Notification' in window) {
             if (Notification.permission === 'default') {
