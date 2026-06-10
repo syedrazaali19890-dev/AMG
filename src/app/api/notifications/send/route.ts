@@ -35,31 +35,37 @@ export async function POST(request: NextRequest) {
 
     const isBuy = signal.type === 'BUY';
     const directionEmoji = isBuy ? '🟢' : '🔴';
+    const directionLabel = isBuy ? 'LONG / BUY' : 'SHORT / SELL';
     
     // Check if it is a pending trigger or live activation
     const statusText = signal.status === 'PENDING' ? 'PENDING setup' : 'ACTIVE entry';
-    const title = `${directionEmoji} ${signal.pair} ${signal.type} (${statusText})`;
+    const title = `${directionEmoji} [${directionLabel}] ${signal.pair} (${statusText})`;
     
     // Format numbers
     const format = (val: any) => typeof val === 'number' ? val.toFixed(2) : val;
     const body = `Entry: $${format(signal.entry)} | SL: $${format(signal.stopLoss)} | TP1: $${format(signal.tp1)}`;
 
+    const notifIcon = isBuy ? '/images/notif-buy.svg' : '/images/notif-sell.svg';
+
     const messagePayload = {
       notification: {
         title,
         body,
+        icon: notifIcon,
       },
       data: {
         id: signal.id || '',
         pair: signal.pair,
         type: signal.type,
         entry: String(signal.entry),
+        icon: notifIcon,
+        badge: notifIcon,
         click_action: signal.pair.includes('XAU') ? '/gold-signals' : '/scalping-v2',
       },
       webpush: {
         notification: {
-          icon: '/favicon.ico',
-          badge: '/favicon.ico',
+          icon: notifIcon,
+          badge: notifIcon,
           requireInteraction: true,
         },
         fcmOptions: {

@@ -236,9 +236,11 @@ export class BackgroundMonitor {
 
         if (Notification.permission === 'granted') {
             try {
+                const isLong = signal.direction === 'LONG' || signal.direction === 'BUY';
+                const notifIcon = isLong ? '/images/notif-buy.svg' : '/images/notif-sell.svg';
                 new Notification('❌ Stop Loss Hit', {
                     body: `${signal.pair} ${signal.direction} - Loss: ${profitLoss.toFixed(2)}%`,
-                    icon: '/favicon.ico',
+                    icon: notifIcon,
                     tag: signal.id
                 });
             } catch (error) {
@@ -283,17 +285,14 @@ export class BackgroundMonitor {
     private static showNotification(signal: Signal, profitLoss: number): void {
         if (typeof window === 'undefined') return;
 
-        // Request permission first time
-        if (Notification.permission === 'default') {
-            Notification.requestPermission();
-        }
-
         // Show notification if permitted
         if (Notification.permission === 'granted') {
             try {
+                const isLong = signal.direction === 'LONG' || signal.direction === 'BUY';
+                const notifIcon = isLong ? '/images/notif-buy.svg' : '/images/notif-sell.svg';
                 new Notification('🎯 TP Hit!', {
                     body: `${signal.pair} ${signal.direction} - Profit: ${profitLoss.toFixed(2)}%`,
-                    icon: '/favicon.ico',
+                    icon: notifIcon,
                     tag: signal.id
                 });
             } catch (error) {

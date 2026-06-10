@@ -15,15 +15,19 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Receive background messages and display native browser notifications
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
 
   const notificationTitle = payload.notification?.title || 'AMG Trading Signal';
+  
+  // Use custom icon/badge if supplied in the payload, otherwise default to favicon
+  const icon = payload.notification?.icon || payload.data?.icon || '/favicon.ico';
+  const badge = payload.notification?.badge || payload.data?.badge || '/favicon.ico';
+
   const notificationOptions = {
     body: payload.notification?.body || 'New setup detected.',
-    icon: '/favicon.ico',
-    badge: '/favicon.ico',
+    icon: icon,
+    badge: badge,
     data: payload.data
   };
 
