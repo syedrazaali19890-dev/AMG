@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { SignalProvider } from "@/components/providers/SignalProvider";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -24,8 +25,10 @@ export default function RootLayout({
       <body className="min-h-screen bg-background text-foreground antialiased">
         <SignalProvider>
           {children}
+          <Analytics />
         </SignalProvider>
       </body>
     </html>
   );
 }
+

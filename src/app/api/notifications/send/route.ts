@@ -1,32 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import admin from 'firebase-admin';
-import fs from 'fs/promises';
-import path from 'path';
-
-const tokensFilePath = path.join(process.cwd(), 'src/data/tokens.json');
-
-// Helper to initialize firebase-admin service
-function initAdmin() {
-  if (!admin.apps.length) {
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-    if (!projectId || !clientEmail || !privateKey) {
-      throw new Error('Missing Firebase Admin SDK environment variables in .env.local');
-    }
-
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId,
-        clientEmail,
-        privateKey,
-      }),
-    });
-    console.log('🔥 Firebase Admin SDK Initialized Successfully');
-  }
-  return admin;
-}
+import { db, initAdmin } from '@/lib/firebase/admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,16 +13,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Initialize admin
-    initAdmin();
+    const adminInstance = initAdmin();
 
-    // Read device tokens
-    let tokens: string[] = [];
-    try {
-      const fileContent = await fs.readFile(tokensFilePath, 'utf-8');
-      tokens = JSON.parse(fileContent);
-    } catch (error) {
-      console.warn('tokens.json not found or empty');
-    }
+    // Read device tokens from Firestore
+    const snapshot = await db.collection('fcm_tokens').get();
+    const tokens = snapshot.docs.map(doc => doc.id);
 
     if (tokens.length === 0) {
       return NextResponse.json({ success: true, message: 'No registered tokens found, notification skipped.' });
@@ -92,7 +60,7 @@ export async function POST(request: NextRequest) {
     };
 
     console.log(`📤 Broadcasting push notification to ${tokens.length} devices...`);
-    const response = await admin.messaging().sendEachForMulticast(messagePayload);
+    const response = await adminInstance.messaging().sendEachForMulticast(messagePayload);
     console.log(`✅ Push results: ${response.successCount} success, ${response.failureCount} failed.`);
 
     // If there are failures, prune invalid tokens
@@ -112,9 +80,13 @@ export async function POST(request: NextRequest) {
       });
 
       if (tokensToRemove.length > 0) {
-        const remainingTokens = tokens.filter(t => !tokensToRemove.includes(t));
-        await fs.writeFile(tokensFilePath, JSON.stringify(remainingTokens, null, 2), 'utf-8');
-        console.log(`🧹 Pruned ${tokensToRemove.length} inactive/invalid FCM tokens.`);
+        const batch = db.batch();
+        tokensToRemove.forEach(t => {
+          const docRef = db.collection('fcm_tokens').doc(t);
+          batch.delete(docRef);
+        });
+        await batch.commit();
+        console.log(`🧹 Pruned ${tokensToRemove.length} inactive/invalid FCM tokens from Firestore.`);
       }
     }
 
@@ -128,3 +100,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }
+

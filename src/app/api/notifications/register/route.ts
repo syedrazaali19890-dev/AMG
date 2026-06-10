@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
-
-const tokensFilePath = path.join(process.cwd(), 'src/data/tokens.json');
+import { db } from '@/lib/firebase/admin';
+import admin from 'firebase-admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,20 +13,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read existing tokens
-    let tokens: string[] = [];
-    try {
-      const fileContent = await fs.readFile(tokensFilePath, 'utf-8');
-      tokens = JSON.parse(fileContent);
-    } catch (error) {
-      // If file doesn't exist, start with empty array
-      console.warn('tokens.json not found or invalid, initializing empty list');
-    }
+    const docRef = db.collection('fcm_tokens').doc(token);
+    const docSnap = await docRef.get();
 
-    // Add token if it's new
-    if (!tokens.includes(token)) {
-      tokens.push(token);
-      await fs.writeFile(tokensFilePath, JSON.stringify(tokens, null, 2), 'utf-8');
+    if (!docSnap.exists) {
+      await docRef.set({
+        token,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
       console.log(`✅ Registered new FCM token: ${token.substring(0, 10)}...`);
       return NextResponse.json({ success: true, message: 'Token registered successfully' });
     }
@@ -39,3 +31,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }
+
