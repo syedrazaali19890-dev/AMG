@@ -17,7 +17,17 @@ export async function POST(request: NextRequest) {
 
     // Read device tokens from Firestore
     const snapshot = await db.collection('fcm_tokens').get();
-    const tokens = snapshot.docs.map(doc => doc.id);
+    
+    // Determine the environment and filter tokens to prevent cross-contamination
+    const isProdEnv = process.env.NODE_ENV === 'production';
+    const tokens = snapshot.docs
+      .filter(doc => {
+        const data = doc.data();
+        // If env is defined, match it. If not, default to production for safety/backward compatibility
+        const tokenEnv = data.env || 'production';
+        return isProdEnv ? tokenEnv === 'production' : tokenEnv === 'development';
+      })
+      .map(doc => doc.id);
 
     if (tokens.length === 0) {
       return NextResponse.json({ success: true, message: 'No registered tokens found, notification skipped.' });

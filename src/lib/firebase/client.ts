@@ -79,7 +79,10 @@ export async function requestNotificationPermission(): Promise<string | null> {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ 
+          token,
+          origin: window.location.origin 
+        }),
       });
 
       if (!response.ok) {

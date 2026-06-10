@@ -4,7 +4,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { TrendingUp, Shield, Zap, BarChart3, Target, Award } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'AMG Trading - Advanced Crypto & Forex Trading Signals',
+  title: 'Advanced Crypto & Forex Trading Signals',
   description: 'Get real-time trading signals for cryptocurrency and forex markets. AI-powered analysis, technical indicators, and fundamental news integration for profitable trading decisions.',
   keywords: 'trading signals, crypto trading, forex signals, AMG Trading, cryptocurrency analysis, technical analysis, trading indicators, BTC signals, ETH signals',
   openGraph: {
