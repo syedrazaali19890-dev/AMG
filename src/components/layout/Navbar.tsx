@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 export function Navbar() {
     const [isDark, setIsDark] = useState(true);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isStandalone, setIsStandalone] = useState(false);
 
     useEffect(() => {
         // Check for saved theme preference or default to dark
@@ -21,6 +22,11 @@ export function Navbar() {
         } else {
             document.documentElement.classList.remove('dark');
         }
+
+        // Check if running in PWA standalone mode
+        const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches 
+            || (window.navigator as any).standalone === true;
+        setIsStandalone(isStandaloneMode);
     }, []);
 
     const toggleTheme = () => {
@@ -45,6 +51,24 @@ export function Navbar() {
         { href: '/on-chain', label: 'On-Chain 🐋' },
         { href: '/completed', label: 'Completed Signals' },
     ];
+
+    if (isStandalone) {
+        return (
+            <nav className="glass border-b border-border sticky top-0 z-40 backdrop-blur-lg">
+                <div className="container mx-auto px-4">
+                    <div className="flex items-center justify-center h-16">
+                        <Link href="/" className="flex items-center gap-2 group">
+                            <img
+                                src="/logo.png"
+                                alt="AMG Trading"
+                                className="h-16 w-auto transition-transform"
+                            />
+                        </Link>
+                    </div>
+                </div>
+            </nav>
+        );
+    }
 
     return (
         <nav className="glass border-b border-border sticky top-0 z-40 backdrop-blur-lg">
