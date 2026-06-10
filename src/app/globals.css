@@ -148,3 +148,10 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
 }
+
+/* PWA Standalone Mode Styling */
+@media (display-mode: standalone) and (max-width: 768px) {
+  body {
+    padding-bottom: 4.5rem !important;
+  }
+}
