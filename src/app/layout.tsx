@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://amgtrading-signals.vercel.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://amg-eight.vercel.app'),
   title: {
     default: "AMG Trading - Advanced Crypto & Forex Trading Signals",
     template: "%s | AMG Trading"
