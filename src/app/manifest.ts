@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Trading Signals App',
-    short_name: 'Trading Signals',
+    name: 'AMG Trading Signals',
+    short_name: 'AMG Trading',
     description: '75% Accurate Forex & Crypto Trading Signals',
     start_url: '/',
     display: 'standalone',
