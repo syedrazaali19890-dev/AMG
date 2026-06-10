@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     description: "Professional trading signals for Forex and Cryptocurrency markets with 75%+ accuracy.",
   },
   verification: {
-    google: "eSspdILQMJbPNtOUDrnAcK2sZj17ZmoTXlAJP-ccFus",
+    google: "VFqjFRG3EyA0zqjhFWl_frkAp-e82oEfVTRBgg0BRUI",
   },
   icons: {
     icon: "/favicon.ico",
