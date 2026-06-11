@@ -480,6 +480,7 @@ export default function ScalpingV2Page() {
     const [isPairsOpen, setIsPairsOpen] = useState(false);
     const [newPairInput, setNewPairInput] = useState('');
     const [runningSubFilter, setRunningSubFilter] = useState<'ACTIVE' | 'COMPLETED' | 'STOPPED'>('ACTIVE');
+    const [tpSubFilter, setTpSubFilter] = useState<'ALL' | 'TP1' | 'TP2' | 'TP3'>('ALL');
     const isLoadedRef = useRef(false);
 
     const [isSubscribed, setIsSubscribed] = useState(false);
@@ -524,7 +525,11 @@ export default function ScalpingV2Page() {
 
     const filteredRunningSignals = runningSignals.filter(s => {
         if (runningSubFilter === 'ACTIVE') return s.status === 'ACTIVE' || s.status === 'PENDING';
-        if (runningSubFilter === 'COMPLETED') return s.status === 'COMPLETED';
+        if (runningSubFilter === 'COMPLETED') {
+            if (s.status !== 'COMPLETED') return false;
+            if (tpSubFilter === 'ALL') return true;
+            return s.highestTPHit === tpSubFilter;
+        }
         if (runningSubFilter === 'STOPPED') return s.status === 'STOPPED';
         return true;
     });
@@ -695,7 +700,18 @@ export default function ScalpingV2Page() {
         const updatePricesList = async (list: ScalpingV2Signal[]) => {
             return await Promise.all(
                 list.map(async (signal) => {
-                    if (signal.status !== 'ACTIVE' && signal.status !== 'PENDING') return signal;
+                    if (
+                        signal.status !== 'ACTIVE' &&
+                        signal.status !== 'PENDING' &&
+                        !(
+                            signal.status === 'COMPLETED' &&
+                            (signal.highestTPHit === 'TP1' ||
+                             !signal.highestTPHit ||
+                             (signal.highestTPHit === 'TP2' && signal.tp2HitTime && Date.now() - signal.tp2HitTime <= 30 * 60 * 1000))
+                        )
+                    ) {
+                        return signal;
+                    }
 
                     try {
                         const symbol = BinanceAPI.pairToBinanceSymbol(signal.pair);
@@ -729,14 +745,42 @@ export default function ScalpingV2Page() {
                                     status = 'STOPPED';
                                 }
                             } else {
-                                // Already ACTIVE, check SL/TP3 hits
+                                // Already ACTIVE or COMPLETED — progressive TP tracking
                                 const slHit = isBuy ? price <= signal.stopLoss : price >= signal.stopLoss;
-                                const tp3Hit = isBuy ? price >= signal.tp3 : price <= signal.tp3;
+                                const nowTP1 = isBuy ? price >= signal.tp1 : price <= signal.tp1;
+                                const nowTP2 = isBuy ? price >= signal.tp2 : price <= signal.tp2;
+                                const nowTP3 = isBuy ? price >= signal.tp3 : price <= signal.tp3;
 
-                                if (slHit) {
+                                if (slHit && signal.status !== 'COMPLETED') {
                                     status = 'STOPPED';
-                                } else if (tp3Hit) {
-                                    status = 'COMPLETED';
+                                } else {
+                                    // Track TP1 hit
+                                    if (nowTP1 && !signal.tp1Hit) {
+                                        signal = { ...signal, tp1Hit: true, tp1HitTime: Date.now(), highestTPHit: 'TP1' as const };
+                                        status = 'COMPLETED';
+                                    }
+                                    // Track TP2 hit (upgrades from TP1)
+                                    if (nowTP2 && signal.tp1Hit && !signal.tp2Hit) {
+                                        signal = { ...signal, tp2Hit: true, tp2HitTime: Date.now(), highestTPHit: 'TP2' as const };
+                                        status = 'COMPLETED';
+                                    }
+                                    // Track TP3 hit within 30 min of TP2
+                                    if (nowTP3 && signal.tp2Hit && !signal.tp3Hit) {
+                                        const tp2Time = signal.tp2HitTime || 0;
+                                        const elapsed = Date.now() - tp2Time;
+                                        if (elapsed <= 30 * 60 * 1000) {
+                                            signal = { ...signal, tp3Hit: true, tp3HitTime: Date.now(), highestTPHit: 'TP3' as const };
+                                        }
+                                        status = 'COMPLETED';
+                                    }
+                                    // 30-min timeout: if TP2 hit but TP3 not hit within 30 min, finalize at TP2
+                                    if (signal.tp2Hit && !signal.tp3Hit && signal.tp2HitTime) {
+                                        const elapsed = Date.now() - signal.tp2HitTime;
+                                        if (elapsed > 30 * 60 * 1000) {
+                                            signal = { ...signal, highestTPHit: 'TP2' as const };
+                                            status = 'COMPLETED';
+                                        }
+                                    }
                                 }
                             }
 
@@ -1004,28 +1048,58 @@ export default function ScalpingV2Page() {
 
                             {/* Running Trades Sub-Filters */}
                             {activeTab === 'RUNNING' && (
-                                <div className="flex gap-2 mb-6 bg-white/[0.02] p-1.5 rounded-xl border border-white/5 w-fit">
-                                    {[
-                                        { key: 'ACTIVE', label: 'Active / Pending', count: runningSignals.filter(s => s.status === 'ACTIVE' || s.status === 'PENDING').length, color: 'text-cyan-400' },
-                                        { key: 'COMPLETED', label: 'TP Hit', count: runningSignals.filter(s => s.status === 'COMPLETED').length, color: 'text-emerald-400' },
-                                        { key: 'STOPPED', label: 'SL Hit', count: runningSignals.filter(s => s.status === 'STOPPED').length, color: 'text-rose-400' }
-                                    ].map(sub => (
-                                        <button
-                                            key={sub.key}
-                                            onClick={() => setRunningSubFilter(sub.key as any)}
-                                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-                                                runningSubFilter === sub.key
-                                                    ? 'bg-white/10 text-white shadow-md'
-                                                    : 'text-muted-foreground hover:text-white'
-                                            }`}
-                                        >
-                                            <span className={runningSubFilter === sub.key ? sub.color : 'text-muted-foreground'}>•</span>
-                                            {sub.label}
-                                            <span className="px-1.5 py-0.5 rounded bg-white/5 text-[10px] font-mono font-semibold">
-                                                {sub.count}
-                                            </span>
-                                        </button>
-                                    ))}
+                                <div className="flex flex-col gap-3 mb-6">
+                                    <div className="flex gap-2 bg-white/[0.02] p-1.5 rounded-xl border border-white/5 w-fit">
+                                        {[
+                                            { key: 'ACTIVE', label: 'Active / Pending', count: runningSignals.filter(s => s.status === 'ACTIVE' || s.status === 'PENDING').length, color: 'text-cyan-400' },
+                                            { key: 'COMPLETED', label: 'TP Hit', count: runningSignals.filter(s => s.status === 'COMPLETED').length, color: 'text-emerald-400' },
+                                            { key: 'STOPPED', label: 'SL Hit', count: runningSignals.filter(s => s.status === 'STOPPED').length, color: 'text-rose-400' }
+                                        ].map(sub => (
+                                            <button
+                                                key={sub.key}
+                                                onClick={() => setRunningSubFilter(sub.key as any)}
+                                                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                                                    runningSubFilter === sub.key
+                                                        ? 'bg-white/10 text-white shadow-md'
+                                                        : 'text-muted-foreground hover:text-white'
+                                                }`}
+                                            >
+                                                <span className={runningSubFilter === sub.key ? sub.color : 'text-muted-foreground'}>•</span>
+                                                {sub.label}
+                                                <span className="px-1.5 py-0.5 rounded bg-white/5 text-[10px] font-mono font-semibold">
+                                                    {sub.count}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* TP Level Sub-Filter (only visible when COMPLETED/TP Hit is selected) */}
+                                    {runningSubFilter === 'COMPLETED' && runningSignals.filter(s => s.status === 'COMPLETED').length > 0 && (
+                                        <div className="flex gap-1.5 bg-emerald-500/[0.03] p-1.5 rounded-xl border border-emerald-500/10 w-fit">
+                                            {[
+                                                { key: 'ALL', label: 'All TP', count: runningSignals.filter(s => s.status === 'COMPLETED').length, color: 'text-emerald-400', emoji: '📊' },
+                                                { key: 'TP1', label: 'TP1', count: runningSignals.filter(s => s.status === 'COMPLETED' && s.highestTPHit === 'TP1').length, color: 'text-emerald-400', emoji: '🎯' },
+                                                { key: 'TP2', label: 'TP2', count: runningSignals.filter(s => s.status === 'COMPLETED' && s.highestTPHit === 'TP2').length, color: 'text-amber-400', emoji: '🏆' },
+                                                { key: 'TP3', label: 'TP3', count: runningSignals.filter(s => s.status === 'COMPLETED' && s.highestTPHit === 'TP3').length, color: 'text-purple-400', emoji: '💎' },
+                                            ].map(tp => (
+                                                <button
+                                                    key={tp.key}
+                                                    onClick={() => setTpSubFilter(tp.key as any)}
+                                                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 ${
+                                                        tpSubFilter === tp.key
+                                                            ? 'bg-white/10 text-white shadow-md border border-white/10'
+                                                            : 'text-muted-foreground hover:text-white hover:bg-white/5'
+                                                    }`}
+                                                >
+                                                    <span>{tp.emoji}</span>
+                                                    <span className={tpSubFilter === tp.key ? tp.color : 'text-muted-foreground'}>{tp.label}</span>
+                                                    <span className="px-1 py-0.5 rounded bg-white/5 text-[9px] font-mono font-semibold">
+                                                        {tp.count}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

@@ -779,7 +779,7 @@ export class ICTEngine {
         const currentPrice = ltfCandles[ltfCandles.length - 1].close;
 
         // ─── BUY SIGNAL CHECK ─────────────
-        if (dailyBias.bias === 'BULLISH' || dailyBias.bias === 'NEUTRAL') {
+        if (dailyBias.bias === 'BULLISH') {
             const sellSideSweep = liquiditySweeps.find(s => s.type === 'SELLSIDE');
             const inDiscount = premiumDiscount.currentZone === 'DISCOUNT' || premiumDiscount.currentZone === 'EQUILIBRIUM';
             // OB proximity: price within or near (0.15%) the OB zone
@@ -821,11 +821,11 @@ export class ICTEngine {
                 // Only generate Elite and A+ setups
                 if (score.grade === 'ELITE' || score.grade === 'A+' || score.grade === 'A') {
                     const slLevel = sellSideSweep ? sellSideSweep.sweepPrice : premiumDiscount.swingLow;
-                    const slDistance = Math.max(currentPrice - slLevel, currentPrice * 0.0015); // Ensure at least 0.15% buffer
+                    const slDistance = Math.max(currentPrice - slLevel, currentPrice * 0.004); // Ensure at least 0.4% buffer
 
-                    const target1 = currentPrice + slDistance * 3;    // 1:3 RR
-                    const target2 = currentPrice + slDistance * 5;    // 1:5 RR
-                    const target3 = premiumDiscount.swingHigh > (currentPrice + slDistance * 5) ? premiumDiscount.swingHigh : currentPrice + slDistance * 7; // Opposite liquidity
+                    const target1 = currentPrice + slDistance * 1.5;  // 1:1.5 RR
+                    const target2 = currentPrice + slDistance * 3;    // 1:3 RR
+                    const target3 = premiumDiscount.swingHigh > (currentPrice + slDistance * 3) ? premiumDiscount.swingHigh : currentPrice + slDistance * 5; // Opposite liquidity
 
                     // Sort targets in ascending order (closest to furthest)
                     const sortedTargets = [target1, target2, target3].sort((a, b) => a - b);
@@ -838,7 +838,7 @@ export class ICTEngine {
                         tp1: sortedTargets[0],
                         tp2: sortedTargets[1],
                         tp3: sortedTargets[2],
-                        riskRewardRatio: 3,
+                        riskRewardRatio: 1.5,
                         dailyBias,
                         liquiditySweep: sellSideSweep || null,
                         oteConfirmation: ote.inZone ? ote : null,
@@ -858,7 +858,7 @@ export class ICTEngine {
         }
 
         // ─── SELL SIGNAL CHECK ────────────
-        if (dailyBias.bias === 'BEARISH' || dailyBias.bias === 'NEUTRAL') {
+        if (dailyBias.bias === 'BEARISH') {
             const buySideSweep = liquiditySweeps.find(s => s.type === 'BUYSIDE');
             const inPremium = premiumDiscount.currentZone === 'PREMIUM' || premiumDiscount.currentZone === 'EQUILIBRIUM';
             const bearishOB = orderBlocks.find(ob => {
@@ -896,11 +896,11 @@ export class ICTEngine {
 
                 if (score.grade === 'ELITE' || score.grade === 'A+' || score.grade === 'A') {
                     const slLevel = buySideSweep ? buySideSweep.sweepPrice : premiumDiscount.swingHigh;
-                    const slDistance = Math.max(slLevel - currentPrice, currentPrice * 0.0015); // Ensure at least 0.15% buffer
+                    const slDistance = Math.max(slLevel - currentPrice, currentPrice * 0.004); // Ensure at least 0.4% buffer
 
-                    const target1 = currentPrice - slDistance * 3;
-                    const target2 = currentPrice - slDistance * 5;
-                    const target3 = premiumDiscount.swingLow < (currentPrice - slDistance * 5) ? premiumDiscount.swingLow : currentPrice - slDistance * 7;
+                    const target1 = currentPrice - slDistance * 1.5;  // 1:1.5 RR
+                    const target2 = currentPrice - slDistance * 3;    // 1:3 RR
+                    const target3 = premiumDiscount.swingLow < (currentPrice - slDistance * 3) ? premiumDiscount.swingLow : currentPrice - slDistance * 5;
 
                     // Sort targets in descending order (closest to furthest for short)
                     const sortedTargets = [target1, target2, target3].sort((a, b) => b - a);
@@ -913,7 +913,7 @@ export class ICTEngine {
                         tp1: sortedTargets[0],
                         tp2: sortedTargets[1],
                         tp3: sortedTargets[2],
-                        riskRewardRatio: 3,
+                        riskRewardRatio: 1.5,
                         dailyBias,
                         liquiditySweep: buySideSweep || null,
                         oteConfirmation: ote.inZone ? ote : null,

@@ -138,7 +138,7 @@ export class GoldSignalGenerator {
         // Apply a small offset (0.015%) to entry to give user warning time before trigger
         const isBuy = ictSignal.type === 'BUY';
         const offset = ictSignal.entry * 0.00015; // 0.015% offset (approx $0.75 for Gold)
-        
+
         const entry = isBuy ? ictSignal.entry - offset : ictSignal.entry + offset;
         const stopLoss = isBuy ? ictSignal.stopLoss - offset : ictSignal.stopLoss + offset;
         const tp1 = isBuy ? ictSignal.tp1 - offset : ictSignal.tp1 + offset;
