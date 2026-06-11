@@ -107,7 +107,21 @@ export class ExnessAPI {
      * IMPORTANT: Must match the price in getSimulatedForexPrice() to avoid signal rate mismatches
      */
     private static async getGoldPrice(): Promise<number> {
-        // Gold price mid-2026 realistic range: ~$2600-2700 USD per troy ounce
+        try {
+            const response = await fetch('https://api.coinbase.com/v2/prices/XAU-USD/spot');
+            if (response.ok) {
+                const data = await response.json();
+                const price = parseFloat(data.data.amount);
+                if (price && !isNaN(price)) {
+                    this.lastPrices.set('XAU/USD', price);
+                    return price;
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to fetch Gold price from Coinbase, using fallback:', error);
+        }
+        
+        // Fallback to our smooth random walk
         const baseGoldPrice = 2650;
         return this.getOrCreatePrice('XAU/USD', baseGoldPrice, 0.0020);
     }
@@ -117,7 +131,20 @@ export class ExnessAPI {
      * IMPORTANT: Must match the price in getSimulatedForexPrice() to avoid signal rate mismatches
      */
     private static async getSilverPrice(): Promise<number> {
-        // Silver price mid-2026 realistic range: ~$31-32 USD per troy ounce
+        try {
+            const response = await fetch('https://api.coinbase.com/v2/prices/XAG-USD/spot');
+            if (response.ok) {
+                const data = await response.json();
+                const price = parseFloat(data.data.amount);
+                if (price && !isNaN(price)) {
+                    this.lastPrices.set('XAG/USD', price);
+                    return price;
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to fetch Silver price from Coinbase, using fallback:', error);
+        }
+        
         const baseSilverPrice = 31.50;
         return this.getOrCreatePrice('XAG/USD', baseSilverPrice, 0.0030);
     }
