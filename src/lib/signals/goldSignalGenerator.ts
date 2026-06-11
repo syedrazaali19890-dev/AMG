@@ -233,10 +233,10 @@ export class GoldSignalGenerator {
     private static getBaseGoldPrice(pair: string): number {
         // IMPORTANT: These must match ExnessAPI.getGoldPrice() / getSilverPrice() base values
         const prices: Record<string, number> = {
-            'XAU/USD': 3350,    // Gold (mid-2026 realistic)
-            'XAG/USD': 33.50,   // Silver (mid-2026 realistic)
+            'XAU/USD': 2650,    // Gold (mid-2026 realistic)
+            'XAG/USD': 31.50,   // Silver (mid-2026 realistic)
         };
-        return prices[pair] || 3350;
+        return prices[pair] || 2650;
     }
 
     /**

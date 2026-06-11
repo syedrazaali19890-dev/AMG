@@ -821,7 +821,8 @@ export class ICTEngine {
                 // Only generate Elite and A+ setups
                 if (score.grade === 'ELITE' || score.grade === 'A+' || score.grade === 'A') {
                     const slLevel = sellSideSweep ? sellSideSweep.sweepPrice : premiumDiscount.swingLow;
-                    const slDistance = Math.max(currentPrice - slLevel, currentPrice * 0.004); // Ensure at least 0.4% buffer
+                    const minSL = this.getMinSLBuffer(pair, currentPrice);
+                    const slDistance = Math.max(currentPrice - slLevel, minSL);
 
                     const target1 = currentPrice + slDistance * 1.5;  // 1:1.5 RR
                     const target2 = currentPrice + slDistance * 3;    // 1:3 RR
@@ -896,7 +897,8 @@ export class ICTEngine {
 
                 if (score.grade === 'ELITE' || score.grade === 'A+' || score.grade === 'A') {
                     const slLevel = buySideSweep ? buySideSweep.sweepPrice : premiumDiscount.swingHigh;
-                    const slDistance = Math.max(slLevel - currentPrice, currentPrice * 0.004); // Ensure at least 0.4% buffer
+                    const minSL = this.getMinSLBuffer(pair, currentPrice);
+                    const slDistance = Math.max(slLevel - currentPrice, minSL);
 
                     const target1 = currentPrice - slDistance * 1.5;  // 1:1.5 RR
                     const target2 = currentPrice - slDistance * 3;    // 1:3 RR
@@ -933,5 +935,29 @@ export class ICTEngine {
         }
 
         return null;
+    }
+
+    private static getMinSLBuffer(pair: string, currentPrice: number): number {
+        const key = pair.toUpperCase();
+        const isGold = key.includes('XAU');
+        const isSilver = key.includes('XAG');
+        const isForex = key.includes('EUR') || key.includes('GBP') || key.includes('JPY') || 
+                        key.includes('CHF') || key.includes('AUD') || key.includes('CAD') || 
+                        key.includes('NZD');
+        
+        if (isGold) {
+            // Gold: Minimum 0.08% buffer (approx $2.10 at $2650)
+            return currentPrice * 0.0008;
+        }
+        if (isSilver) {
+            // Silver: Minimum 0.15% buffer (approx $0.05 at $31.50)
+            return currentPrice * 0.0015;
+        }
+        if (isForex) {
+            // Forex: Minimum 0.08% buffer (approx 8-10 pips)
+            return currentPrice * 0.0008;
+        }
+        // Crypto (Default): 0.4% buffer
+        return currentPrice * 0.004;
     }
 }

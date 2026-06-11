@@ -56,7 +56,8 @@ export class MarketDataManager {
         if (pair.includes('AUD')) basePrice = 0.65;
         if (pair.includes('CAD')) basePrice = 1.39;
         if (pair.includes('NZD')) basePrice = 0.59;
-        if (pair.includes('XAU')) basePrice = 2050; // Gold price
+        if (pair.includes('XAU')) basePrice = 2650; // Gold price
+        if (pair.includes('XAG')) basePrice = 31.50; // Silver price
 
         const now = new Date();
 

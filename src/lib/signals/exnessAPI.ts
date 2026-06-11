@@ -107,8 +107,8 @@ export class ExnessAPI {
      * IMPORTANT: Must match the price in getSimulatedForexPrice() to avoid signal rate mismatches
      */
     private static async getGoldPrice(): Promise<number> {
-        // Gold price mid-2026 realistic range: ~$3300-3400 USD per troy ounce
-        const baseGoldPrice = 3350;
+        // Gold price mid-2026 realistic range: ~$2600-2700 USD per troy ounce
+        const baseGoldPrice = 2650;
         return this.getOrCreatePrice('XAU/USD', baseGoldPrice, 0.0020);
     }
 
@@ -117,8 +117,8 @@ export class ExnessAPI {
      * IMPORTANT: Must match the price in getSimulatedForexPrice() to avoid signal rate mismatches
      */
     private static async getSilverPrice(): Promise<number> {
-        // Silver price mid-2026 realistic range: ~$33-34 USD per troy ounce
-        const baseSilverPrice = 33.50;
+        // Silver price mid-2026 realistic range: ~$31-32 USD per troy ounce
+        const baseSilverPrice = 31.50;
         return this.getOrCreatePrice('XAG/USD', baseSilverPrice, 0.0030);
     }
 
@@ -172,8 +172,8 @@ export class ExnessAPI {
             'USD/INR': 88.50,
 
             // Metals — MUST match getGoldPrice() / getSilverPrice() base values
-            'XAU/USD': 3350.00, // Gold (Realistic mid-2026 price)
-            'XAG/USD': 33.50,   // Silver (Realistic mid-2026 price)
+            'XAU/USD': 2650.00, // Gold (Realistic mid-2026 price)
+            'XAG/USD': 31.50,   // Silver (Realistic mid-2026 price)
 
             // Commodities
             'CL/USD': 82.50,    // Crude Oil
