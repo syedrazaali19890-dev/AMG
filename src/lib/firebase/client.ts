@@ -1,5 +1,5 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getMessaging, getToken, isSupported } from 'firebase/messaging';
+import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -19,6 +19,8 @@ const app = typeof window !== 'undefined' && getApps().length === 0
 /**
  * Ask for notification permissions and return the FCM registration token.
  * Registers token with the server endpoint.
+ * Also sets up the foreground onMessage listener so notifications
+ * are shown even when the app tab is in the foreground.
  */
 export async function requestNotificationPermission(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
@@ -46,21 +48,33 @@ export async function requestNotificationPermission(): Promise<string | null> {
 
     // Register service worker manually to ensure path is resolved correctly in Next.js
     console.log('Registering service worker...');
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-      scope: '/'
-    });
-    
-    // Wait for service worker to become active to avoid PushManager subscription issues
-    console.log('Waiting for service worker to become active...');
-    if (registration.installing) {
-      await new Promise<void>((resolve) => {
-        registration.installing?.addEventListener('statechange', (e) => {
-          if ((e.target as ServiceWorker).state === 'activated') {
-            resolve();
-          }
-        });
+    let registration: ServiceWorkerRegistration;
+
+    // Try to get existing registration first to avoid duplicate registrations
+    const existingReg = await navigator.serviceWorker.getRegistration('/');
+    if (existingReg && existingReg.active) {
+      registration = existingReg;
+      // Force update the service worker to pick up any changes
+      registration.update().catch(() => {});
+      console.log('Using existing service worker registration');
+    } else {
+      registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+        scope: '/'
       });
+      
+      // Wait for service worker to become active to avoid PushManager subscription issues
+      console.log('Waiting for service worker to become active...');
+      if (registration.installing) {
+        await new Promise<void>((resolve) => {
+          registration.installing?.addEventListener('statechange', (e) => {
+            if ((e.target as ServiceWorker).state === 'activated') {
+              resolve();
+            }
+          });
+        });
+      }
     }
+
     await navigator.serviceWorker.ready;
     console.log('Service worker registered and ready:', registration);
 
@@ -90,6 +104,12 @@ export async function requestNotificationPermission(): Promise<string | null> {
       }
 
       console.log('✅ Token registered with server successfully.');
+
+      // ===== FOREGROUND MESSAGE HANDLER =====
+      // FCM only shows notifications automatically when the app is in the background.
+      // When the app is in the foreground (tab visible), we must manually show them.
+      setupForegroundMessageHandler(messaging);
+
       return token;
     } else {
       console.warn('⚠️ No FCM registration token returned.');
@@ -99,4 +119,51 @@ export async function requestNotificationPermission(): Promise<string | null> {
     console.error('❌ Error getting push notification token:', error);
     return null;
   }
+}
+
+/**
+ * Track whether foreground handler is already set up to avoid duplicates
+ */
+let foregroundHandlerSetup = false;
+
+/**
+ * Set up foreground message handler.
+ * When the app is in the foreground, FCM does NOT auto-show notifications.
+ * We must listen via onMessage() and show them manually.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function setupForegroundMessageHandler(messaging: any): void {
+  if (foregroundHandlerSetup) return;
+  foregroundHandlerSetup = true;
+
+  onMessage(messaging, (payload) => {
+    console.log('[FCM Foreground] Message received:', payload);
+
+    const title = payload.notification?.title || 'AMG Trading Signal';
+    const body = payload.notification?.body || 'New setup detected.';
+    const icon = payload.notification?.icon || payload.data?.icon || '/favicon.ico';
+    const clickAction = payload.data?.click_action || '/';
+
+    // Show notification using the Notification API (foreground)
+    if (Notification.permission === 'granted') {
+      try {
+        const notif = new Notification(title, {
+          body,
+          icon,
+          tag: payload.data?.id || `fcm-fg-${Date.now()}`,
+          requireInteraction: true,
+        });
+
+        notif.onclick = () => {
+          window.focus();
+          window.location.href = clickAction;
+          notif.close();
+        };
+      } catch (err) {
+        console.warn('Could not show foreground notification:', err);
+      }
+    }
+  });
+
+  console.log('✅ FCM foreground message handler registered.');
 }
