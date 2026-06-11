@@ -23,6 +23,34 @@ export class ExnessAPI {
     private static readonly FOREX_API_URL = 'https://api.frankfurter.app';
     private static readonly FIXER_API_URL = 'https://open.er-api.com/v6/latest';
 
+    // Store stateful prices to simulate realistic continuous movement
+    private static lastPrices: Map<string, number> = new Map();
+
+    private static getOrCreatePrice(pair: string, basePrice: number, volatility: number): number {
+        const key = pair.toUpperCase();
+        if (!this.lastPrices.has(key)) {
+            // Seed with a random initial price near base price
+            const initialPrice = basePrice * (1 + (Math.random() - 0.5) * 0.005);
+            this.lastPrices.set(key, initialPrice);
+            return initialPrice;
+        }
+        
+        const lastPrice = this.lastPrices.get(key)!;
+        // Small random walk: volatility * 0.1 (smooth change per tick)
+        const change = (Math.random() - 0.5) * volatility * 0.1;
+        const newPrice = lastPrice * (1 + change);
+        
+        // Boundaries to prevent price drifting to infinity/zero
+        const maxBound = basePrice * 1.05;
+        const minBound = basePrice * 0.95;
+        let boundedPrice = newPrice;
+        if (newPrice > maxBound) boundedPrice = maxBound;
+        if (newPrice < minBound) boundedPrice = minBound;
+
+        this.lastPrices.set(key, boundedPrice);
+        return boundedPrice;
+    }
+
     /**
      * Get current Forex price for a pair
      * Exness-compatible pricing
@@ -81,8 +109,7 @@ export class ExnessAPI {
     private static async getGoldPrice(): Promise<number> {
         // Gold price mid-2026 realistic range: ~$3300-3400 USD per troy ounce
         const baseGoldPrice = 3350;
-        const variation = (Math.random() - 0.5) * 30; // ±$15 variation (realistic intraday)
-        return baseGoldPrice + variation;
+        return this.getOrCreatePrice('XAU/USD', baseGoldPrice, 0.0020);
     }
 
     /**
@@ -92,8 +119,7 @@ export class ExnessAPI {
     private static async getSilverPrice(): Promise<number> {
         // Silver price mid-2026 realistic range: ~$33-34 USD per troy ounce
         const baseSilverPrice = 33.50;
-        const variation = (Math.random() - 0.5) * 1.5; // ±$0.75 variation
-        return baseSilverPrice + variation;
+        return this.getOrCreatePrice('XAG/USD', baseSilverPrice, 0.0030);
     }
 
     /**
@@ -102,8 +128,7 @@ export class ExnessAPI {
     private static async getOilPrice(): Promise<number> {
         // Crude oil price typically ranges between 60-90 USD per barrel
         const baseOilPrice = 75;
-        const variation = (Math.random() - 0.5) * 10; // ±$5 variation
-        return baseOilPrice + variation;
+        return this.getOrCreatePrice('CL/USD', baseOilPrice, 0.0035);
     }
 
     /**
@@ -156,8 +181,8 @@ export class ExnessAPI {
         };
 
         const basePrice = priceMap[pair] || 1.0;
-        const variation = (Math.random() - 0.5) * 0.003; // ±0.15% variation
-        return basePrice * (1 + variation);
+        const volatility = this.getForexVolatility(pair);
+        return this.getOrCreatePrice(pair, basePrice, volatility);
     }
 
     /**
@@ -174,25 +199,23 @@ export class ExnessAPI {
         const candles: ForexCandle[] = [];
         const currentPrice = await this.getCurrentForexPrice(pair);
 
-        // Generate realistic historical candles
-        let price = currentPrice * 0.98; // Start slightly lower
+        // Generate realistic historical candles walking backward from currentPrice
+        let price = currentPrice;
         const now = Date.now();
         const intervalMs = this.getIntervalMs(interval);
 
-        for (let i = 0; i < limit; i++) {
-            const timestamp = now - (limit - i) * intervalMs;
-
-            // Simulate realistic price movement
+        for (let i = limit - 1; i >= 0; i--) {
+            const timestamp = now - (limit - 1 - i) * intervalMs;
             const volatility = this.getForexVolatility(pair);
             const change = (Math.random() - 0.5) * volatility;
 
-            const open = price;
-            const close = price * (1 + change);
+            const close = price;
+            const open = price / (1 + change);
             const high = Math.max(open, close) * (1 + Math.random() * volatility * 0.3);
             const low = Math.min(open, close) * (1 - Math.random() * volatility * 0.3);
             const volume = 1000000 * (0.5 + Math.random()); // Simulated volume
 
-            candles.push({
+            candles.unshift({
                 time: timestamp,
                 open,
                 high,
@@ -201,7 +224,7 @@ export class ExnessAPI {
                 volume
             });
 
-            price = close;
+            price = open;
         }
 
         return candles;
