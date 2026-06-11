@@ -24,6 +24,15 @@ export interface GoldSignal extends ICTSignal {
     lotSizeRecommendation?: string;
     /** Gold-specific: pip value info */
     pipValue?: string;
+    /** TP level tracking */
+    tp1Hit?: boolean;
+    tp2Hit?: boolean;
+    tp3Hit?: boolean;
+    tp1HitTime?: number;  // timestamp when TP1 was hit
+    tp2HitTime?: number;  // timestamp when TP2 was hit
+    tp3HitTime?: number;  // timestamp when TP3 was hit
+    /** Highest TP level reached: 'TP1' | 'TP2' | 'TP3' */
+    highestTPHit?: 'TP1' | 'TP2' | 'TP3' | null;
 }
 
 // Gold-specific pairs to scan
