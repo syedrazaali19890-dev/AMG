@@ -118,6 +118,12 @@ export function PredictionDisplay({ nextCandlePrediction, predictionConsensus }:
                                 <span className="font-semibold">{predictionConsensus.technicalWeight}%</span>
                             </div>
                         )}
+                        {predictionConsensus.orderBookWeight > 0 && (
+                            <div className="flex items-center gap-1 text-xs">
+                                <span className="text-muted-foreground">Order Book:</span>
+                                <span className="font-semibold">{predictionConsensus.orderBookWeight}%</span>
+                            </div>
+                        )}
                         <div className="ml-auto flex items-center gap-1 text-xs">
                             <span className="text-muted-foreground">Agreement:</span>
                             <span className={`font-semibold ${predictionConsensus.agreement >= 80 ? 'text-green-500' :

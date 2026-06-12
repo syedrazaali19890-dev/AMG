@@ -11,13 +11,15 @@ import {
     Timeframe,
     MarketCondition,
     TechnicalAlignment,
-    MacroSignalBias
+    MacroSignalBias,
+    OrderBookDepth
 } from './types';
 import { TechnicalIndicators } from './indicators';
 import { NewsAnalyzer } from './newsAnalyzer';
 import { AdvancedMarketAnalyzer, MarketAnalysis } from './advancedAnalyzer';
 import { SignalHelpers } from './signalHelpers';
 import { PredictionEngine } from '../ml/predictionEngine';
+import { OrderBookEngine } from '../marketgpt/orderBookEngine';
 import { MultiTimeframeAnalyzer } from '../timeframe/multiTimeframeAnalyzer';
 import { ExchangeAvailability } from './exchangeAvailability';
 import { MacroAnalyzer } from './macroAnalyzer';
@@ -53,6 +55,69 @@ export class SignalGenerator {
             this.predictionEngineInitialized = true;
             console.log('✅ Predictive AI Engine Ready');
         }
+    }
+
+    /**
+     * Generate simulated order book depth metrics for a given pair
+     */
+    private static generateOrderBookDepth(pair: string): OrderBookDepth {
+        const cleanPair = pair.toUpperCase().replace(/[-_]/g, '/');
+        let symbol = 'AAPL';
+        if (cleanPair.startsWith('BTC')) symbol = 'BTC/USD';
+        else if (cleanPair.startsWith('ETH')) symbol = 'ETH/USD';
+        else if (cleanPair.includes('AAPL')) symbol = 'AAPL';
+        else if (cleanPair.includes('TSLA')) symbol = 'TSLA';
+        else if (cleanPair.includes('MSFT')) symbol = 'MSFT';
+        else if (cleanPair.includes('NVDA')) symbol = 'NVDA';
+        else if (cleanPair.includes('AMZN')) symbol = 'AMZN';
+        else if (cleanPair.includes('GOOGL')) symbol = 'GOOGL';
+        else if (cleanPair.includes('META')) symbol = 'META';
+        else if (cleanPair.includes('SPY')) symbol = 'SPY';
+
+        const engine = new OrderBookEngine({ symbol });
+        const snap = engine.getSnapshot();
+
+        const totalVolume = snap.totalBidVolume + snap.totalAskVolume;
+        const buyPressure = totalVolume > 0 ? (snap.totalBidVolume / totalVolume) * 100 : 50;
+        const sellPressure = totalVolume > 0 ? (snap.totalAskVolume / totalVolume) * 100 : 50;
+
+        const imbalance = buyPressure > 55 ? 'BUY' : (sellPressure > 55 ? 'SELL' : 'NEUTRAL');
+        const liquidity = totalVolume > 1000 ? 'HIGH' : (totalVolume > 300 ? 'MEDIUM' : 'LOW');
+
+        // Helper to identify walls (individual levels representing > 12% of side volume)
+        const findWalls = (levels: any[], sideVol: number): any[] => {
+            const walls: any[] = [];
+            let cumulative = 0;
+            for (const l of levels) {
+                cumulative += l.quantity;
+                const pctOfSide = sideVol > 0 ? (l.quantity / sideVol) * 100 : 0;
+                const isWall = pctOfSide > 12; // Wall if single level contains > 12% volume
+                walls.push({
+                    price: l.price,
+                    volume: l.quantity,
+                    totalVolume: cumulative,
+                    significance: Math.round(Math.min(100, pctOfSide * 5)),
+                    isWall
+                });
+            }
+            return walls;
+        };
+
+        const buyWalls = findWalls(snap.bids, snap.totalBidVolume);
+        const sellWalls = findWalls(snap.asks, snap.totalAskVolume);
+
+        return {
+            buyPressure,
+            sellPressure,
+            bidAskRatio: snap.totalBidVolume / Math.max(1, snap.totalAskVolume),
+            spread: snap.spread,
+            spreadPercentage: (snap.spread / snap.midPrice) * 100,
+            buyWalls,
+            sellWalls,
+            imbalance,
+            liquidity,
+            lastUpdated: new Date()
+        };
     }
     /**
      * Generate trading signal with news + technical confirmation
@@ -341,6 +406,9 @@ export class SignalGenerator {
             (direction === SignalDirection.BUY || direction === SignalDirection.LONG) ? 'BULLISH' :
                 (direction === SignalDirection.SELL || direction === SignalDirection.SHORT) ? 'BEARISH' : 'NEUTRAL';
 
+        // Generate simulated order book depth
+        const orderBookDepth = this.generateOrderBookDepth(pair);
+
         // Generate comprehensive predictions (ML + Patterns + Multi-Timeframe)
         let mlPrediction = undefined;
         let detectedPatterns = undefined;
@@ -361,7 +429,8 @@ export class SignalGenerator {
                 currentPrice,
                 timeframe,
                 technicalBias,
-                technicalConfidence
+                technicalConfidence,
+                orderBookDepth
             });
 
             if (predictions) {
@@ -677,6 +746,7 @@ export class SignalGenerator {
             timeframeAlignment,
             nextCandlePrediction,
             predictionConsensus,
+            orderBookDepth,
 
             // Macro Economic Data Bias
             macroDataBias: macroBias

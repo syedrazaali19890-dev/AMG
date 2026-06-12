@@ -9,7 +9,8 @@ import {
     CandlestickPattern,
     NextCandlePrediction,
     PredictionConsensus,
-    Timeframe
+    Timeframe,
+    OrderBookDepth
 } from '../signals/types';
 
 export interface PredictionInput {
@@ -21,6 +22,7 @@ export interface PredictionInput {
     timeframe: Timeframe;
     technicalBias: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
     technicalConfidence: number;
+    orderBookDepth?: OrderBookDepth;
 }
 
 export class PredictionEngine {
@@ -114,7 +116,8 @@ export class PredictionEngine {
                 detectedPatterns,
                 nextCandlePrediction,
                 input.technicalBias,
-                input.technicalConfidence
+                input.technicalConfidence,
+                input.orderBookDepth
             );
 
             return {
@@ -137,13 +140,14 @@ export class PredictionEngine {
         patterns: CandlestickPattern[],
         nextCandlePrediction: NextCandlePrediction,
         technicalBias: 'BULLISH' | 'BEARISH' | 'NEUTRAL',
-        technicalConfidence: number
+        technicalConfidence: number,
+        orderBookDepth?: OrderBookDepth
     ): PredictionConsensus {
         // Assign weights based on availability and reliability
         let mlWeight = 0;
         let patternWeight = 0;
         let technicalWeight = 0;
-        let orderBookWeight = 0; // Will be used when order book is integrated
+        let orderBookWeight = 0;
 
         // ML weight (if model has good accuracy)
         if (mlPrediction.modelAccuracy && mlPrediction.modelAccuracy > 60) {
@@ -159,12 +163,18 @@ export class PredictionEngine {
         // Technical weight
         technicalWeight = (technicalConfidence / 100) * 0.4; // Max 40%
 
+        // Order Book weight
+        if (orderBookDepth) {
+            orderBookWeight = 0.2; // 20% weight
+        }
+
         // Normalize weights to sum to 1
         const totalWeight = mlWeight + patternWeight + technicalWeight + orderBookWeight;
         if (totalWeight > 0) {
             mlWeight /= totalWeight;
             patternWeight /= totalWeight;
             technicalWeight /= totalWeight;
+            orderBookWeight /= totalWeight;
         }
 
         // Calculate weighted scores
@@ -191,6 +201,19 @@ export class PredictionEngine {
             // Neutral - distribute equally
             bullishScore += 0.5 * technicalWeight;
             bearishScore += 0.5 * technicalWeight;
+        }
+
+        // Order Book contribution
+        if (orderBookDepth) {
+            if (orderBookDepth.imbalance === 'BUY') {
+                bullishScore += (orderBookDepth.buyPressure / 100) * orderBookWeight;
+            } else if (orderBookDepth.imbalance === 'SELL') {
+                bearishScore += (orderBookDepth.sellPressure / 100) * orderBookWeight;
+            } else {
+                // Neutral imbalance - distribute based on actual buy/sell pressure
+                bullishScore += (orderBookDepth.buyPressure / 100) * orderBookWeight;
+                bearishScore += (orderBookDepth.sellPressure / 100) * orderBookWeight;
+            }
         }
 
         // Determine overall direction
@@ -222,6 +245,12 @@ export class PredictionEngine {
             const technicalAgrees = technicalBias === overallDirection;
             agreements.push(technicalAgrees ? 1 : 0);
         }
+        if (orderBookWeight > 0 && orderBookDepth) {
+            const obAgrees = (orderBookDepth.imbalance === 'BUY' && overallDirection === 'BULLISH') ||
+                (orderBookDepth.imbalance === 'SELL' && overallDirection === 'BEARISH') ||
+                (orderBookDepth.imbalance === 'NEUTRAL' && overallDirection === 'NEUTRAL');
+            agreements.push(obAgrees ? 1 : 0);
+        }
 
         const agreement = agreements.length > 0
             ? Math.round((agreements.reduce((a, b) => a + b, 0) / agreements.length) * 100)
@@ -243,6 +272,12 @@ export class PredictionEngine {
         }
         if (technicalBias !== 'NEUTRAL' && technicalBias !== overallDirection) {
             conflictingSignals.push(`Technicals are ${technicalBias}`);
+        }
+        if (orderBookWeight > 0 && orderBookDepth) {
+            const obDirection = orderBookDepth.imbalance === 'BUY' ? 'BULLISH' : (orderBookDepth.imbalance === 'SELL' ? 'BEARISH' : 'NEUTRAL');
+            if (obDirection !== 'NEUTRAL' && obDirection !== overallDirection) {
+                conflictingSignals.push(`Order Book shows ${orderBookDepth.imbalance} imbalance (${Math.round(orderBookDepth.buyPressure)}% Buy vs ${Math.round(orderBookDepth.sellPressure)}% Sell)`);
+            }
         }
 
         return {

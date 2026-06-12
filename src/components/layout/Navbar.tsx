@@ -50,6 +50,7 @@ export function Navbar() {
         { href: '/gold-signals', label: 'Gold 🥇' },
         { href: '/on-chain', label: 'On-Chain 🐋' },
         { href: '/completed', label: 'Completed Signals' },
+        { href: '/market-gpt', label: 'MarketGPT 🧠' },
     ];
 
     if (isStandalone) {
